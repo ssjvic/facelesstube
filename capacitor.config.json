@@ -1,0 +1,24 @@
+{
+    "appId": "com.facelesstube.app",
+    "appName": "FacelessTube",
+    "webDir": "dist",
+    "server": {
+        "androidScheme": "https"
+    },
+    "plugins": {
+        "SplashScreen": {
+            "launchShowDuration": 2000,
+            "launchAutoHide": true,
+            "backgroundColor": "#0a0a12",
+            "androidSplashResourceName": "splash",
+            "showSpinner": false
+        },
+        "FirebaseAuthentication": {
+            "skipNativeAuth": true,
+            "providers": [
+                "google.com"
+            ],
+            "serverClientId": "1034702874964-tvoigpg67rdhd5vmniknkluo1md3bh26.apps.googleusercontent.com"
+        }
+    }
+}

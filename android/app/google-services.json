@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "1034702874964",
+    "project_id": "facelesstube-db635",
+    "storage_bucket": "facelesstube-db635.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1034702874964:android:490f78e40d806056a9c0c1",
+        "android_client_info": {
+          "package_name": "com.facelesstube.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1034702874964-r2u08qe6u7esccjgta2uo6u8qgr0vb8d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.facelesstube.app",
+            "certificate_hash": "ae6b58b67dec2c95708700c86934676cd5d9673f"
+          }
+        },
+        {
+          "client_id": "1034702874964-tvoigpg67rdhd5vmniknkluo1md3bh26.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1EyjPKpo0vu1W3CGUlPcGmCA1mlWy-tE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1034702874964-tvoigpg67rdhd5vmniknkluo1md3bh26.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
