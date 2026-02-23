@@ -96,7 +96,7 @@ export default function Dashboard() {
   const [tipMessage, setTipMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | 'success' | 'error'
   const [uploadError, setUploadError] = useState("");
-  const [showDownloadPrompt, setShowDownloadPrompt] = useState(true);
+
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem("facelesstube_onboarding_done");
   });
