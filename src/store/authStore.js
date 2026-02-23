@@ -547,13 +547,82 @@ export const useAuthStore = create(
         set({ user: updatedUser });
       },
 
-      // Increment video count
+      // Increment video count — with Supabase verification to survive reinstalls
       incrementVideoCount: async () => {
         const user = get().user;
         if (!user) return;
 
         const newCount = (user.videosThisMonth || 0) + 1;
-        await get().updateUser({ videosThisMonth: newCount });
+
+        // 1. Update local state immediately for responsiveness
+        set({ user: { ...user, videosThisMonth: newCount } });
+
+        // 2. Persist to Supabase with verification
+        if (isSupabaseConfigured() && !get().isDemo) {
+          try {
+            // Direct Supabase update
+            const result = await db.updateUser(user.id, {
+              videos_this_month: newCount,
+            });
+
+            if (!result) {
+              console.warn(
+                "⚠️ incrementVideoCount: db.updateUser returned null — retrying...",
+              );
+              // Retry once after a short delay
+              await new Promise((r) => setTimeout(r, 1000));
+              const retry = await db.updateUser(user.id, {
+                videos_this_month: newCount,
+              });
+              if (!retry) {
+                console.error(
+                  "❌ incrementVideoCount: retry also failed. Count may not persist.",
+                );
+              } else {
+                console.log(
+                  "✅ incrementVideoCount: retry succeeded, count =",
+                  newCount,
+                );
+              }
+            } else {
+              console.log(
+                "✅ incrementVideoCount: saved to Supabase, count =",
+                newCount,
+              );
+            }
+
+            // 3. Verify by re-reading from Supabase
+            try {
+              const profile = await db.getUser(user.id);
+              if (profile) {
+                const serverCount = profile.videos_this_month || 0;
+                if (serverCount !== newCount) {
+                  console.warn(
+                    `⚠️ Verification mismatch: local=${newCount}, server=${serverCount}. Force-updating server.`,
+                  );
+                  // Force update server to match
+                  await db.updateUser(user.id, {
+                    videos_this_month: newCount,
+                  });
+                }
+              }
+            } catch (verifyErr) {
+              console.warn("⚠️ Verification read failed:", verifyErr);
+            }
+          } catch (e) {
+            console.error("❌ incrementVideoCount: Supabase error:", e.message);
+          }
+        }
+
+        // 4. Also persist to localStorage as backup for session continuity
+        try {
+          localStorage.setItem(
+            "facelesstube_user",
+            JSON.stringify({ ...user, videosThisMonth: newCount }),
+          );
+        } catch (e) {
+          /* ignore */
+        }
       },
 
       // Use credits
