@@ -12,8 +12,6 @@ import {
   VolumeX,
   Mail,
   Film,
-  Library,
-  User,
   Mic,
   Bot,
   Shuffle,
@@ -22,11 +20,19 @@ import {
   Check,
   Plus,
   Trash2,
+  Camera,
+  Image,
+  Zap,
 } from "lucide-react";
+import {
+  PREINSTALLED_VIDEOS,
+  PREINSTALLED_CATEGORIES,
+  getPreinstalledByCategory,
+} from "../services/preinstalledVideos";
 import { useAuthStore } from "../store/authStore";
 import { useTranslation, LANGUAGES } from "../store/i18nStore";
 import { useVideoStore } from "../store/videoStore";
-import { useVideoLibraryStore } from "../store/videoLibraryStore";
+
 import { useAdStore } from "../store/adStore";
 import { generateScript } from "../services/geminiService";
 import {
@@ -44,11 +50,7 @@ import {
   AI_VOICE_STATUS,
   getAIVoiceStatus,
 } from "../services/aiVoiceService";
-import {
-  PREINSTALLED_VIDEOS,
-  PREINSTALLED_CATEGORIES,
-  getPreinstalledByCategory,
-} from "../services/preinstalledVideos";
+
 import { isYouTubeConnected, uploadVideo } from "../services/youtubeService";
 import { isServiceConfigured } from "../config/apiConfig";
 import { VIDEO_TEMPLATES, getRandomIdea } from "../services/videoTemplates";
@@ -101,21 +103,10 @@ export default function Dashboard() {
     return !localStorage.getItem("facelesstube_onboarding_done");
   });
 
-  // Video library
-  const {
-    videos: libraryVideos,
-    selectedVideo: librarySelectedVideo,
-    loadVideos: loadLibraryVideos,
-    selectVideo: selectLibraryVideo,
-  } = useVideoLibraryStore();
-
-  // Video source toggle and preinstalled
-  const [videoSource, setVideoSource] = useState("preinstalled"); // 'user' | 'preinstalled'
-  const [preinstalledCategory, setPreinstalledCategory] = useState("all");
-  const [selectedPreinstalled, setSelectedPreinstalled] = useState(null);
-
-  // Get filtered preinstalled videos
-  const filteredPreinstalled = getPreinstalledByCategory(preinstalledCategory);
+  // Visual style — photos (Pexels auto), gradient, or clips (preinstalled)
+  const [visualStyle, setVisualStyle] = useState("photos"); // 'photos' | 'gradient' | 'clips'
+  const [selectedClip, setSelectedClip] = useState(null);
+  const [clipCategory, setClipCategory] = useState("all");
 
   // AI Voice state
   const [voiceMode, setVoiceMode] = useState("basic"); // 'basic' | 'ai'
@@ -293,17 +284,8 @@ export default function Dashboard() {
       return;
     }
 
-    // Check if video selected based on source
-    const selectedVideo =
-      videoSource === "user" ? librarySelectedVideo : selectedPreinstalled;
-    if (!selectedVideo) {
-      setError(
-        videoSource === "user"
-          ? "Selecciona un video de tus videos"
-          : "Selecciona un video de la biblioteca",
-      );
-      return;
-    }
+    // Visual style is always ready (Pexels auto-search or gradient)
+    const selectedVideo = { id: visualStyle, category: idea, name: idea };
 
     const backendUrl =
       import.meta.env.VITE_API_URL ||
@@ -541,15 +523,18 @@ export default function Dashboard() {
 
       // For user library videos, use the stored data URL
       let backgroundVideoData = null;
-      if (videoSource === "user" && librarySelectedVideo) {
-        backgroundVideoData =
-          librarySelectedVideo.dataUrl || librarySelectedVideo.url;
-      }
 
       // Fetch photos from Pexels API (preferred over videos — faster, more reliable)
       let photoUrls = [];
       let backgroundUrl = null;
-      if (videoSource !== "user") {
+
+      // If using preinstalled clips, set the background URL directly
+      if (visualStyle === "clips" && selectedClip) {
+        backgroundUrl = selectedClip.url;
+        console.log(`🎬 Using preinstalled clip: ${selectedClip.name}`);
+      }
+
+      if (visualStyle === "photos") {
         const searchTerm =
           selectedVideo?.category || selectedVideo?.name || idea;
         try {
@@ -605,7 +590,7 @@ export default function Dashboard() {
         photoUrls.length > 0
           ? `✅ ${photoUrls.length} fotos de fondo listas`
           : backgroundUrl
-            ? "✅ Video de fondo listo"
+            ? "✅ Estilo visual listo"
             : "🎨 Se usará fondo animado";
       await smoothProgress(35, bgStatus, 500);
 
@@ -676,8 +661,7 @@ export default function Dashboard() {
       };
 
       // Get video ID for cache lookup
-      const bgVideoId =
-        selectedPreinstalled?.id || librarySelectedVideo?.id || null;
+      const bgVideoId = null;
 
       const videoBlob = await createVideoWithLibrary(
         scriptForRenderer,
@@ -1160,57 +1144,147 @@ export default function Dashboard() {
               )}
             </div>
 
-            {/* Video de fondo - Selector simplificado */}
+            {/* 🎨 Estilo Visual — Pro card showing auto Pexels */}
             <div className="mb-4 md:mb-6">
               <label className="block text-sm font-medium mb-2">
-                🎬 Video de fondo
+                🎨 Estilo Visual
               </label>
 
-              {/* Toggle simple */}
-              <div className="flex gap-1.5 mb-3 p-1 bg-dark-600/50 rounded-xl">
+              <div className="grid grid-cols-3 gap-2">
+                {/* Photos option */}
                 <button
-                  onClick={() => {
-                    setVideoSource("preinstalled");
-                    selectLibraryVideo(null);
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                    videoSource === "preinstalled"
-                      ? "bg-neon-cyan/20 text-neon-cyan shadow-sm"
-                      : "text-white/50 hover:text-white/70"
+                  onClick={() => setVisualStyle("photos")}
+                  className={`relative p-2.5 rounded-xl border-2 transition-all text-left ${
+                    visualStyle === "photos"
+                      ? "border-neon-cyan bg-neon-cyan/10 ring-1 ring-neon-cyan/30"
+                      : "border-white/10 bg-dark-600/50 hover:border-white/20"
                   }`}
                 >
-                  <Library size={14} />
-                  📦 Incluidos
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Camera
+                      size={14}
+                      className={
+                        visualStyle === "photos"
+                          ? "text-neon-cyan"
+                          : "text-white/50"
+                      }
+                    />
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        visualStyle === "photos"
+                          ? "text-neon-cyan"
+                          : "text-white/70"
+                      }`}
+                    >
+                      Fotos HD
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-white/40 leading-snug">
+                    Pexels auto + Ken Burns
+                  </p>
+                  {visualStyle === "photos" && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <span className="px-1 py-0.5 bg-neon-cyan/20 text-neon-cyan text-[8px] font-bold rounded-full border border-neon-cyan/30">
+                        ✓
+                      </span>
+                    </div>
+                  )}
                 </button>
+
+                {/* Video Clips option */}
                 <button
-                  onClick={() => {
-                    setVideoSource("user");
-                    setSelectedPreinstalled(null);
-                  }}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
-                    videoSource === "user"
-                      ? "bg-neon-purple/20 text-neon-purple shadow-sm"
-                      : "text-white/50 hover:text-white/70"
+                  onClick={() => setVisualStyle("clips")}
+                  className={`relative p-2.5 rounded-xl border-2 transition-all text-left ${
+                    visualStyle === "clips"
+                      ? "border-emerald-400 bg-emerald-400/10 ring-1 ring-emerald-400/30"
+                      : "border-white/10 bg-dark-600/50 hover:border-white/20"
                   }`}
                 >
-                  <User size={14} />
-                  📱 Mis Videos
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Film
+                      size={14}
+                      className={
+                        visualStyle === "clips"
+                          ? "text-emerald-400"
+                          : "text-white/50"
+                      }
+                    />
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        visualStyle === "clips"
+                          ? "text-emerald-400"
+                          : "text-white/70"
+                      }`}
+                    >
+                      Clips
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-white/40 leading-snug">
+                    Videos de fondo en bucle
+                  </p>
+                  {visualStyle === "clips" && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <span className="px-1 py-0.5 bg-emerald-400/20 text-emerald-400 text-[8px] font-bold rounded-full border border-emerald-400/30">
+                        ✓
+                      </span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Gradient option */}
+                <button
+                  onClick={() => setVisualStyle("gradient")}
+                  className={`relative p-2.5 rounded-xl border-2 transition-all text-left ${
+                    visualStyle === "gradient"
+                      ? "border-neon-purple bg-neon-purple/10 ring-1 ring-neon-purple/30"
+                      : "border-white/10 bg-dark-600/50 hover:border-white/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Zap
+                      size={14}
+                      className={
+                        visualStyle === "gradient"
+                          ? "text-neon-purple"
+                          : "text-white/50"
+                      }
+                    />
+                    <span
+                      className={`text-[11px] font-semibold ${
+                        visualStyle === "gradient"
+                          ? "text-neon-purple"
+                          : "text-white/70"
+                      }`}
+                    >
+                      Gradiente
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-white/40 leading-snug">
+                    Fondo animado dinámico
+                  </p>
+                  {visualStyle === "gradient" && (
+                    <div className="absolute top-1.5 right-1.5">
+                      <span className="px-1 py-0.5 bg-neon-purple/20 text-neon-purple text-[8px] font-bold rounded-full border border-neon-purple/30">
+                        ✓
+                      </span>
+                    </div>
+                  )}
                 </button>
               </div>
 
-              {/* Biblioteca preinstalada */}
-              {videoSource === "preinstalled" && (
-                <>
-                  {/* Categorías */}
-                  <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-hide">
+              {/* Clip selector — shown when clips style is active */}
+              {visualStyle === "clips" && (
+                <div className="mt-3">
+                  {/* Category filter */}
+                  <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-hide">
                     {PREINSTALLED_CATEGORIES.map((cat) => (
                       <button
                         key={cat.id}
-                        onClick={() => setPreinstalledCategory(cat.id)}
-                        className={`px-2.5 py-1.5 rounded-lg border whitespace-nowrap transition-all text-xs ${
-                          preinstalledCategory === cat.id
-                            ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
-                            : "border-white/10 text-white/60 hover:border-white/30"
+                        onClick={() => setClipCategory(cat.id)}
+                        className={`px-2 py-1 rounded-lg border whitespace-nowrap transition-all text-[10px] ${
+                          clipCategory === cat.id
+                            ? "border-emerald-400 bg-emerald-400/10 text-emerald-400"
+                            : "border-white/10 text-white/50 hover:border-white/30"
                         }`}
                       >
                         {cat.icon} {cat.label}
@@ -1218,147 +1292,76 @@ export default function Dashboard() {
                     ))}
                   </div>
 
-                  {/* Grid de videos preinstalados */}
-                  <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                    {filteredPreinstalled.map((video) => (
+                  {/* Clips grid */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {getPreinstalledByCategory(clipCategory).map((clip) => (
                       <button
-                        key={video.id}
-                        onClick={() => setSelectedPreinstalled(video)}
+                        key={clip.id}
+                        onClick={() => setSelectedClip(clip)}
                         className={`relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all ${
-                          selectedPreinstalled?.id === video.id
-                            ? "border-neon-cyan ring-2 ring-neon-cyan/30"
+                          selectedClip?.id === clip.id
+                            ? "border-emerald-400 ring-2 ring-emerald-400/30"
                             : "border-transparent hover:border-white/20"
                         }`}
                       >
                         <img
-                          src={video.thumbnail}
-                          alt={video.name}
+                          src={clip.thumbnail}
+                          alt={clip.name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                           onError={(e) => {
                             e.target.src =
-                              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%23666" font-size="30">🎬</text></svg>';
+                              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 178"><rect fill="%23222" width="100" height="178"/><text x="50" y="90" text-anchor="middle" fill="%23555" font-size="24">🎬</text></svg>';
                           }}
                         />
-                        {selectedPreinstalled?.id === video.id && (
-                          <div className="absolute inset-0 bg-neon-cyan/20 flex items-center justify-center">
-                            <CheckCircle2 size={20} className="text-white" />
+                        {selectedClip?.id === clip.id && (
+                          <div className="absolute inset-0 bg-emerald-400/20 flex items-center justify-center">
+                            <CheckCircle2 size={16} className="text-white" />
                           </div>
                         )}
                         <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
-                          <p className="text-[10px] text-white truncate">
-                            {video.name}
+                          <p className="text-[8px] text-white truncate">
+                            {clip.name}
                           </p>
                         </div>
                       </button>
                     ))}
                   </div>
 
-                  {/* Seleccionado */}
-                  {selectedPreinstalled && (
-                    <div className="mt-2 p-2 rounded-lg bg-neon-cyan/10 border border-neon-cyan/30 flex items-center gap-2">
+                  {/* Selected clip indicator */}
+                  {selectedClip && (
+                    <div className="mt-2 p-2 rounded-lg bg-emerald-400/10 border border-emerald-400/30 flex items-center gap-2">
                       <Film
-                        size={14}
-                        className="text-neon-cyan flex-shrink-0"
+                        size={12}
+                        className="text-emerald-400 flex-shrink-0"
                       />
-                      <span className="text-xs text-white flex-1 truncate">
-                        ✓ {selectedPreinstalled.name}
+                      <span className="text-[10px] text-white flex-1 truncate">
+                        ✓ {selectedClip.name}
                       </span>
                       <button
-                        onClick={() => setSelectedPreinstalled(null)}
+                        onClick={() => setSelectedClip(null)}
                         className="text-white/60 hover:text-white text-xs"
                       >
                         ✕
                       </button>
                     </div>
                   )}
-                </>
+                </div>
               )}
 
-              {/* Mis Videos (usuario) */}
-              {videoSource === "user" && (
-                <>
-                  {libraryVideos.length === 0 ? (
-                    <div className="p-4 rounded-lg bg-white/5 border border-dashed border-white/20 text-center">
-                      <p className="text-white/50 text-xs mb-2">
-                        Aún no tienes videos
-                      </p>
-                      <a
-                        href="/app/library"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-neon-purple/20 border border-neon-purple/50 rounded-lg text-neon-purple text-xs hover:bg-neon-purple/30 transition-all"
-                      >
-                        <Film size={14} />
-                        Ir a subir uno
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-3 gap-1.5 md:gap-2">
-                      {libraryVideos.slice(0, 6).map((video) => (
-                        <button
-                          key={video.id}
-                          onClick={() => selectLibraryVideo(video)}
-                          className={`relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all ${
-                            librarySelectedVideo?.id === video.id
-                              ? "border-neon-purple ring-2 ring-neon-purple/30"
-                              : "border-transparent hover:border-white/20"
-                          }`}
-                        >
-                          {video.thumbnail ? (
-                            <img
-                              src={video.thumbnail}
-                              alt={video.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                              <Film size={20} className="text-white/40" />
-                            </div>
-                          )}
-                          {librarySelectedVideo?.id === video.id && (
-                            <div className="absolute inset-0 bg-neon-purple/20 flex items-center justify-center">
-                              <CheckCircle2 size={20} className="text-white" />
-                            </div>
-                          )}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
-                            <p className="text-[10px] text-white truncate">
-                              {video.name}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                      {libraryVideos.length > 6 && (
-                        <a
-                          href="/app/library"
-                          className="aspect-[9/16] rounded-lg border border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 hover:text-white/60 hover:border-white/40 transition-all"
-                        >
-                          <span className="text-lg">
-                            +{libraryVideos.length - 6}
-                          </span>
-                          <span className="text-[10px]">Ver más</span>
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Seleccionado */}
-                  {librarySelectedVideo && (
-                    <div className="mt-2 p-2 rounded-lg bg-neon-purple/10 border border-neon-purple/30 flex items-center gap-2">
-                      <Film
-                        size={14}
-                        className="text-neon-purple flex-shrink-0"
-                      />
-                      <span className="text-xs text-white flex-1 truncate">
-                        ✓ {librarySelectedVideo.name}
-                      </span>
-                      <button
-                        onClick={() => selectLibraryVideo(null)}
-                        className="text-white/60 hover:text-white text-xs"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+              {/* Info banner */}
+              <div className="mt-2 p-2 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
+                <Zap size={12} className="text-neon-cyan flex-shrink-0" />
+                <span className="text-[10px] text-white/50">
+                  {visualStyle === "photos"
+                    ? "La IA busca fotos automáticamente según el tema de tu video"
+                    : visualStyle === "clips"
+                      ? selectedClip
+                        ? `Se usará "${selectedClip.name}" como fondo en bucle`
+                        : "Elige un clip de arriba para usarlo como fondo"
+                      : "Se generará un fondo gradiente animado que combina con tu contenido"}
+                </span>
+              </div>
             </div>
 
             {/* 🎵 Music Section */}

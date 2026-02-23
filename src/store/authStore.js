@@ -202,36 +202,11 @@ export const useAuthStore = create(
           }
 
           if (session?.user) {
-            // Try to fetch user profile, but ALWAYS work without it
-            // db.getUser and db.createUser now return null on error
-            // instead of throwing, so this is safe
-            let profile = null;
-            try {
-              profile = await db.getUser(session.user.id);
-              if (!profile) {
-                profile = await db.createUser({
-                  id: session.user.id,
-                  email: session.user.email,
-                  name:
-                    session.user.user_metadata?.full_name ||
-                    session.user.email?.split("@")[0],
-                  avatar: session.user.user_metadata?.avatar_url,
-                  tier: "free",
-                  credits: 100,
-                  videos_this_month: 0,
-                  youtube_connected: false,
-                });
-              }
-            } catch (profileError) {
-              console.log("Profile error (using session data):", profileError);
-              profile = null;
-            }
-
-            set({
-              user: buildUserFromSession(session.user, profile),
-              loading: false,
-              isDemo: false,
-            });
+            // Use fetchAndSetProfile which has the SAFETY MERGE logic:
+            // it compares local persisted state vs server state and keeps
+            // the higher videosThisMonth count. This prevents count resets
+            // when the app is killed and reopened.
+            await fetchAndSetProfile(session.user, set, get);
           } else {
             // No session found
             if (!_loginInProgress) {
