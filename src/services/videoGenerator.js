@@ -329,11 +329,25 @@ export async function createVideoWithLibrary(
           "",
         )
         .replace(
-          /^(?:Title|Titulo|Hook|Gancho|Intro|Development|Desarrollo|CTA|Conclusion|Cierre|Script|Guion|Narration)\s*:\s*/gim,
+          /^(?:Title|Título|Titulo|Hook|Gancho|Intro|Introduction|Development|Desarrollo|CTA|Conclusion|Cierre|Script|Guion|Guión|Narration|Description|Descripción|Descripcion|Tags|Hashtags|Search\s*Terms)\s*:\s*/gim,
+          "",
+        )
+        .replace(
+          /\b(?:json|script|title|titulo|description|descripcion|tags|hashtags|search_?terms|searchTerms)\s*:/gi,
           "",
         )
         .replace(/\[.*?\]/g, "")
+        .replace(/^[\s{"\[]+|[\s}"\]]+$/g, "")
         .replace(/\n{3,}/g, "\n\n")
+        .split("\n")
+        .filter((line) => {
+          const s = line.trim();
+          if (!s) return true;
+          // Remove short lines that are just labels/field names
+          if (s.length < 10 && /^[A-Za-záéíóúñ\s:"{}]+$/.test(s)) return false;
+          return true;
+        })
+        .join("\n")
         .trim();
 
       const paragraphs = fullText.split(/\n\n+/).filter((p) => p.trim());
@@ -637,6 +651,19 @@ export async function createVideoWithLibrary(
           // ============ SUBTÍTULOS ESTILO VIRAL ============
           // (Usar la misma lógica de subtítulos mejorada)
           drawViralSubtitles(ctx, canvas, sceneText, time);
+
+          // ============ WATERMARK ============
+          ctx.save();
+          ctx.font = 'bold 22px "Inter", "Segoe UI", system-ui, sans-serif';
+          ctx.textAlign = "right";
+          ctx.textBaseline = "top";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.fillText("facelesstube.app", canvas.width - 20, 20);
+          ctx.restore();
 
           // Barra de progreso
           const progress =
@@ -1108,6 +1135,19 @@ export async function createVideo(script, images, audioBlob, onProgress) {
               x += wordWidth;
             });
           });
+
+          // ============ WATERMARK ============
+          ctx.save();
+          ctx.font = 'bold 22px "Inter", "Segoe UI", system-ui, sans-serif';
+          ctx.textAlign = "right";
+          ctx.textBaseline = "top";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.fillText("facelesstube.app", canvas.width - 20, 20);
+          ctx.restore();
 
           // Barra de progreso
           const progress =
