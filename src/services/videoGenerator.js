@@ -654,15 +654,15 @@ export async function createVideoWithLibrary(
 
           // ============ WATERMARK ============
           ctx.save();
-          ctx.font = 'bold 22px "Inter", "Segoe UI", system-ui, sans-serif';
-          ctx.textAlign = "right";
+          ctx.font = "bold 24px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.textAlign = "center";
           ctx.textBaseline = "top";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-          ctx.shadowBlur = 4;
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 6;
           ctx.shadowOffsetX = 1;
           ctx.shadowOffsetY = 1;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-          ctx.fillText("facelesstube.app", canvas.width - 20, 20);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.50)";
+          ctx.fillText("facelesstube.app", canvas.width / 2, 25);
           ctx.restore();
 
           // Barra de progreso
@@ -1138,15 +1138,15 @@ export async function createVideo(script, images, audioBlob, onProgress) {
 
           // ============ WATERMARK ============
           ctx.save();
-          ctx.font = 'bold 22px "Inter", "Segoe UI", system-ui, sans-serif';
-          ctx.textAlign = "right";
+          ctx.font = "bold 24px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.textAlign = "center";
           ctx.textBaseline = "top";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.7)";
-          ctx.shadowBlur = 4;
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 6;
           ctx.shadowOffsetX = 1;
           ctx.shadowOffsetY = 1;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-          ctx.fillText("facelesstube.app", canvas.width - 20, 20);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.50)";
+          ctx.fillText("facelesstube.app", canvas.width / 2, 25);
           ctx.restore();
 
           // Barra de progreso
