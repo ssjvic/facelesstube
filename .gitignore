@@ -23,6 +23,10 @@ Thumbs.db
 # Android build artifacts
 android/app/build/
 
+# Firebase / Google credentials (NEVER commit to public repos)
+android/app/google-services.json
+ios/App/App/GoogleService-Info.plist
+
 # Misc
 *.keystore
 video muestra.mp4
