@@ -320,19 +320,43 @@ export async function createVideoWithLibrary(
 
       // Dividir guión en segmentos — ensure fullText is a string
       const rawText = script.fullScript || script.guion || script.script || "";
-      const fullText = typeof rawText === "string" ? rawText : String(rawText);
+      let fullText = typeof rawText === "string" ? rawText : String(rawText);
+
+      // Clean script: remove section markers that TTS/subtitles would read aloud
+      fullText = fullText
+        .replace(
+          /\[(?:HOOK|INTRO|INTRODUCTION|DEVELOPMENT|BODY|CLIMAX|CONCLUSION|CTA|OUTRO|CALL TO ACTION|CIERRE|GANCHO|DESARROLLO)\]/gi,
+          "",
+        )
+        .replace(
+          /^(?:Title|Titulo|Hook|Gancho|Intro|Development|Desarrollo|CTA|Conclusion|Cierre|Script|Guion|Narration)\s*:\s*/gim,
+          "",
+        )
+        .replace(/\[.*?\]/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
       const paragraphs = fullText.split(/\n\n+/).filter((p) => p.trim());
 
+      // Dynamic scene count: 1 scene per ~5 seconds (~12 words per scene)
+      const totalWords = fullText.split(/\s+/).filter((w) => w).length;
+      const targetScenes = Math.max(6, Math.ceil(totalWords / 12));
+
       let scenes = [];
-      if (paragraphs.length >= 6) {
-        scenes = paragraphs.slice(0, 6);
+      if (paragraphs.length >= targetScenes) {
+        scenes = paragraphs.slice(0, targetScenes);
+      } else if (paragraphs.length >= 4) {
+        // Split paragraphs further if needed
+        scenes = paragraphs;
       } else {
-        const words = fullText.split(/\s+/);
-        const wordsPerScene = Math.ceil(words.length / 6);
-        for (let i = 0; i < 6; i++) {
+        const words = fullText.split(/\s+/).filter((w) => w);
+        const wordsPerScene = Math.ceil(words.length / targetScenes);
+        for (let i = 0; i < targetScenes; i++) {
           const start = i * wordsPerScene;
           const end = Math.min(start + wordsPerScene, words.length);
-          scenes.push(words.slice(start, end).join(" "));
+          if (start < words.length) {
+            scenes.push(words.slice(start, end).join(" "));
+          }
         }
       }
 

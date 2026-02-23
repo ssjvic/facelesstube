@@ -432,8 +432,23 @@ export default function Dashboard() {
 
       // Parse script data
       const rawScript = scriptData.script || scriptData.guion || "";
-      const fullScript =
+      let fullScript =
         typeof rawScript === "string" ? rawScript : JSON.stringify(rawScript);
+
+      // Clean script: remove section markers that TTS would read aloud
+      fullScript = fullScript
+        .replace(
+          /\[(?:HOOK|INTRO|INTRODUCTION|DEVELOPMENT|BODY|CLIMAX|CONCLUSION|CTA|OUTRO|CALL TO ACTION|CIERRE|GANCHO|DESARROLLO)\]/gi,
+          "",
+        )
+        .replace(
+          /^(?:Title|Titulo|Hook|Gancho|Intro|Development|Desarrollo|CTA|Conclusion|Cierre|Script|Guion|Narration)\s*:\s*/gim,
+          "",
+        )
+        .replace(/\[.*?\]/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+
       const rawTags = scriptData.tags || [];
       const tags = Array.isArray(rawTags)
         ? rawTags
