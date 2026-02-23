@@ -469,14 +469,25 @@ export async function createVideoWithLibrary(
         ["#0c0c1d", "#1b1b3a", "#2d2d5e"], // Space
       ];
 
-      // Renderizar 6 escenas x 3 seg = 18 seg total (mucho más rápido)
+      // Calculate actual video duration based on audio or word count
+      // Audio duration is the ground truth; fall back to word-count estimate
+      const totalDurationSec = audioBuffer
+        ? Math.ceil(audioBuffer.duration)
+        : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.5));
+      const numScenes = Math.min(
+        scenes.length,
+        Math.max(6, Math.ceil(totalDurationSec / 5)),
+      );
       const fps = 15;
-      const sceneDuration = 3000; // 3 seconds per scene
-      const framesPerScene = (sceneDuration / 1000) * fps;
+      const sceneDuration = (totalDurationSec / numScenes) * 1000; // ms per scene
+      const framesPerScene = Math.round((sceneDuration / 1000) * fps);
+      console.log(
+        `🎬 Video: ${totalDurationSec}s total, ${numScenes} scenes, ${(sceneDuration / 1000).toFixed(1)}s each`,
+      );
 
-      for (let sceneIdx = 0; sceneIdx < 6; sceneIdx++) {
-        const sceneText = scenes[sceneIdx] || "";
-        onProgress?.(`🎬 Escena ${sceneIdx + 1}/6...`);
+      for (let sceneIdx = 0; sceneIdx < numScenes; sceneIdx++) {
+        const sceneText = scenes[sceneIdx % scenes.length] || "";
+        onProgress?.(`🎬 Escena ${sceneIdx + 1}/${numScenes}...`);
 
         for (let frame = 0; frame < framesPerScene; frame++) {
           const time = (sceneIdx * framesPerScene + frame) / fps;
@@ -605,7 +616,7 @@ export async function createVideoWithLibrary(
 
           // Barra de progreso
           const progress =
-            (sceneIdx * framesPerScene + frame) / (6 * framesPerScene);
+            (sceneIdx * framesPerScene + frame) / (numScenes * framesPerScene);
           ctx.fillStyle = "rgba(168, 85, 247, 0.9)";
           ctx.fillRect(0, 0, canvas.width * progress, 4);
 
