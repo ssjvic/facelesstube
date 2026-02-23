@@ -62,7 +62,6 @@ import {
 import ApiTutorial from "../components/ui/ApiTutorial";
 import EmailModal from "../components/ui/EmailModal";
 import WelcomeOnboarding from "../components/ui/WelcomeOnboarding";
-import VideoDownloadPrompt from "../components/ui/VideoDownloadPrompt";
 
 export default function Dashboard() {
   const { user, getTierInfo, canGenerateVideo, incrementVideoCount } =
@@ -95,6 +94,8 @@ export default function Dashboard() {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [tipMessage, setTipMessage] = useState("");
+  const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | 'success' | 'error'
+  const [uploadError, setUploadError] = useState("");
   const [showDownloadPrompt, setShowDownloadPrompt] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem("facelesstube_onboarding_done");
@@ -456,7 +457,78 @@ export default function Dashboard() {
           ? rawTags.split(",").map((t) => t.trim())
           : [];
       const rawHashtags = scriptData.hashtags || [];
-      const hashtags = Array.isArray(rawHashtags) ? rawHashtags : [];
+      let hashtags = Array.isArray(rawHashtags) ? rawHashtags : [];
+
+      // If AI returned no hashtags, generate topic-specific ones from the video idea
+      if (hashtags.length === 0) {
+        const stopWords = new Set([
+          "the",
+          "and",
+          "for",
+          "are",
+          "but",
+          "not",
+          "you",
+          "all",
+          "can",
+          "had",
+          "her",
+          "was",
+          "one",
+          "our",
+          "out",
+          "has",
+          "his",
+          "how",
+          "its",
+          "may",
+          "new",
+          "now",
+          "old",
+          "see",
+          "way",
+          "who",
+          "did",
+          "get",
+          "let",
+          "say",
+          "she",
+          "too",
+          "use",
+          "que",
+          "una",
+          "por",
+          "con",
+          "los",
+          "las",
+          "del",
+          "para",
+          "como",
+          "mas",
+          "todo",
+          "esta",
+          "eso",
+          "ese",
+          "son",
+          "hay",
+          "ser",
+          "muy",
+          "sin",
+          "sobre",
+          "tiene",
+          "desde",
+        ]);
+        const ideaWords = idea
+          .toLowerCase()
+          .replace(/[^a-záéíóúñü\s]/gi, "")
+          .split(/\s+/)
+          .filter((w) => w.length >= 3 && !stopWords.has(w));
+        const uniqueWords = [...new Set(ideaWords)].slice(0, 5);
+        hashtags = uniqueWords.map((w) => `#${w}`);
+        // Always include app hashtag
+        hashtags.push("#facelesstube", "#youtube", "#viral");
+        console.log("📌 Generated fallback hashtags from idea:", hashtags);
+      }
       const title = String(scriptData.title || scriptData.titulo || idea);
       const description = String(
         scriptData.description || scriptData.descripcion || "",
@@ -672,40 +744,66 @@ export default function Dashboard() {
 
   // Upload to YouTube
   const handleUpload = async () => {
+    // Clear previous status
+    setUploadStatus(null);
+    setUploadError("");
+
     if (!isYouTubeConnected()) {
-      setError("Conecta tu canal de YouTube primero");
+      setUploadStatus("error");
+      setUploadError(
+        "⚠️ Conecta tu canal de YouTube primero.\nVe a Mi Cuenta → Conectar Canal.",
+      );
       return;
     }
 
     const blob = currentVideo?.blob;
     if (!blob) {
-      setError("No hay video para subir. Genera uno primero.");
+      setUploadStatus("error");
+      setUploadError("No hay video para subir. Genera uno primero.");
       return;
     }
 
     try {
+      setUploadStatus("uploading");
+      const videoBlob =
+        blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob());
       const result = await uploadVideo(
-        blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob()),
+        videoBlob,
         {
           title: currentVideo.title,
           description: currentVideo.description,
           tags: currentVideo.tags || [],
           privacyStatus: "private",
         },
-        () => {},
+        (percent) => {
+          console.log(`Upload progress: ${percent.toFixed(0)}%`);
+        },
       );
       console.log("Upload success:", result);
+      setUploadStatus("success");
     } catch (error) {
       console.error("Upload error:", error);
-      setError(error.message || "Error al subir el video");
+      setUploadStatus("error");
+      setUploadError(error.message || "Error al subir el video");
     }
   };
 
   // Download / Share video
   const handleDownload = async () => {
-    const blob = currentVideo?.blob;
+    let blob = currentVideo?.blob;
+
+    // If blob is missing, try to get it from videoUrl or storage
+    if (!blob && currentVideo?.videoUrl) {
+      try {
+        blob = await fetch(currentVideo.videoUrl).then((r) => r.blob());
+      } catch (e) {
+        console.warn("Failed to fetch from videoUrl:", e);
+      }
+    }
+
     if (!blob) {
-      setError("No hay video para descargar");
+      setUploadStatus("error");
+      setUploadError("No hay video para descargar. Genera uno primero.");
       return;
     }
 
@@ -714,7 +812,12 @@ export default function Dashboard() {
       const videoBlob =
         blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob());
 
-      const fileName = `${currentVideo.title || "FacelessTube_video"}.webm`;
+      // Clean filename (remove special chars)
+      const safeTitle =
+        (currentVideo.title || "FacelessTube_video")
+          .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g, "")
+          .trim() || "FacelessTube_video";
+      const fileName = `${safeTitle}.webm`;
       const file = new File([videoBlob], fileName, { type: "video/webm" });
 
       // Try Share API first (mobile-friendly — save to gallery, share to apps)
@@ -745,7 +848,8 @@ export default function Dashboard() {
       setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       console.error("Download/Share error:", e);
-      setError("Error al descargar el video. Intenta de nuevo.");
+      setUploadStatus("error");
+      setUploadError("Error al descargar el video. Intenta de nuevo.");
     }
   };
 
@@ -1167,13 +1271,6 @@ export default function Dashboard() {
                       </button>
                     </div>
                   )}
-
-                  {/* Video Download Prompt */}
-                  {showDownloadPrompt && (
-                    <VideoDownloadPrompt
-                      onDismiss={() => setShowDownloadPrompt(false)}
-                    />
-                  )}
                 </>
               )}
 
@@ -1555,22 +1652,76 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Upload/Download Status Banner */}
+            {uploadStatus && (
+              <div
+                className={`mb-3 p-3 rounded-xl border text-sm flex items-center gap-2 ${
+                  uploadStatus === "uploading"
+                    ? "bg-blue-500/10 border-blue-500/30 text-blue-300"
+                    : uploadStatus === "success"
+                      ? "bg-green-500/10 border-green-500/30 text-green-300"
+                      : "bg-red-500/10 border-red-500/30 text-red-300"
+                }`}
+              >
+                {uploadStatus === "uploading" && (
+                  <>
+                    <Loader2 size={16} className="animate-spin" /> Subiendo
+                    video a YouTube...
+                  </>
+                )}
+                {uploadStatus === "success" && (
+                  <>
+                    <CheckCircle2 size={16} /> ¡Video subido a YouTube como
+                    borrador!
+                  </>
+                )}
+                {uploadStatus === "error" && (
+                  <div className="flex-1">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+                      <span className="whitespace-pre-wrap">{uploadError}</span>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    setUploadStatus(null);
+                    setUploadError("");
+                  }}
+                  className="ml-auto text-white/40 hover:text-white/80 p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="space-y-3">
               {/* YouTube Upload - PROMINENT */}
               <button
                 onClick={handleUpload}
-                className="w-full py-3.5 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3 shadow-lg shadow-red-600/30 transition-all"
+                disabled={uploadStatus === "uploading"}
+                className={`w-full py-3.5 rounded-xl text-white font-bold text-base flex items-center justify-center gap-3 shadow-lg transition-all ${
+                  uploadStatus === "uploading"
+                    ? "bg-gray-600 cursor-not-allowed opacity-60"
+                    : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 shadow-red-600/30"
+                }`}
               >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z" />
-                </svg>
-                {t("dashboard.upload")}
+                {uploadStatus === "uploading" ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0C.488 3.45.029 5.804 0 12c.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0C23.512 20.55 23.971 18.196 24 12c-.029-6.185-.484-8.549-4.385-8.816zM9 16V8l8 4-8 4z" />
+                  </svg>
+                )}
+                {uploadStatus === "uploading"
+                  ? "Subiendo..."
+                  : t("dashboard.upload")}
               </button>
 
               <div className="flex gap-2">
@@ -1587,7 +1738,7 @@ export default function Dashboard() {
                   ) : (
                     <Download size={18} />
                   )}
-                  {navigator.share ? "Compartir" : "Descargar"}
+                  {navigator.share ? "Compartir" : t("dashboard.download")}
                 </button>
                 <button
                   onClick={() => setShowEmailModal(true)}

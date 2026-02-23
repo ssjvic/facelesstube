@@ -96,7 +96,7 @@ function buildUserFromSession(sessionUser, profile = null) {
 
 // Helper: fetch profile from Supabase and set full user state
 // This ensures counters (videosThisMonth, credits, tier) persist across reinstalls
-async function fetchAndSetProfile(sessionUser, set) {
+async function fetchAndSetProfile(sessionUser, set, getState) {
   let profile = null;
   try {
     profile = await db.getUser(sessionUser.id);
@@ -117,8 +117,36 @@ async function fetchAndSetProfile(sessionUser, set) {
   } catch (e) {
     console.log("Profile fetch error (using session data):", e);
   }
+
+  const serverUser = buildUserFromSession(sessionUser, profile);
+
+  // SAFETY: If we have locally persisted user data with a higher video count,
+  // use the higher value to prevent accidental resets on reinstall/re-login.
+  // This can happen if db.updateUser silently failed in a previous session.
+  let currentState = null;
+  try {
+    currentState = typeof getState === "function" ? getState() : null;
+  } catch (e) {
+    /* ignore */
+  }
+  const localUser = currentState?.user;
+  if (localUser && localUser.id === serverUser.id) {
+    if ((localUser.videosThisMonth || 0) > (serverUser.videosThisMonth || 0)) {
+      console.warn(
+        `⚠️ Local videosThisMonth (${localUser.videosThisMonth}) > server (${serverUser.videosThisMonth}). Syncing up.`,
+      );
+      serverUser.videosThisMonth = localUser.videosThisMonth;
+      // Also push the higher count to the server
+      db.updateUser(sessionUser.id, {
+        videos_this_month: localUser.videosThisMonth,
+      }).then((r) => {
+        if (!r) console.warn("⚠️ Failed to sync videosThisMonth to server");
+      });
+    }
+  }
+
   set({
-    user: buildUserFromSession(sessionUser, profile),
+    user: serverUser,
     loading: false,
     isDemo: false,
   });
@@ -306,7 +334,7 @@ export const useAuthStore = create(
             if (data?.user) {
               console.log("✅ Supabase session created for:", data.user.email);
               // Fetch real profile from DB to preserve counters
-              await fetchAndSetProfile(data.user, set);
+              await fetchAndSetProfile(data.user, set, get);
               _loginInProgress = false;
               return true;
             }
@@ -397,7 +425,7 @@ export const useAuthStore = create(
           if (data?.user) {
             console.log("✅ Email login success for:", data.user.email);
             // Fetch real profile from DB to preserve counters
-            await fetchAndSetProfile(data.user, set);
+            await fetchAndSetProfile(data.user, set, get);
             _loginInProgress = false;
             return true;
           }
@@ -491,13 +519,23 @@ export const useAuthStore = create(
 
         if (isSupabaseConfigured() && !get().isDemo) {
           // Update in database (won't throw on error)
-          await db.updateUser(user.id, {
-            name: updates.name,
-            tier: updates.tier,
-            credits: updates.credits,
-            videos_this_month: updates.videosThisMonth,
-            youtube_connected: updates.youtubeConnected,
-          });
+          const dbUpdates = {};
+          if (updates.name !== undefined) dbUpdates.name = updates.name;
+          if (updates.tier !== undefined) dbUpdates.tier = updates.tier;
+          if (updates.credits !== undefined)
+            dbUpdates.credits = updates.credits;
+          if (updates.videosThisMonth !== undefined)
+            dbUpdates.videos_this_month = updates.videosThisMonth;
+          if (updates.youtubeConnected !== undefined)
+            dbUpdates.youtube_connected = updates.youtubeConnected;
+
+          const result = await db.updateUser(user.id, dbUpdates);
+          if (!result) {
+            console.warn(
+              "⚠️ db.updateUser returned null — profile update may have failed for:",
+              dbUpdates,
+            );
+          }
         } else {
           // Update in localStorage for demo
           localStorage.setItem(
@@ -575,8 +613,11 @@ export const useAuthStore = create(
     {
       name: "facelesstube-auth",
       partialize: (state) => ({
-        // Only persist minimal data, real data comes from Supabase
+        // Persist user data so limits survive app reinstall/cache clear.
+        // On next login, fetchAndSetProfile() will refresh from Supabase
+        // (source of truth), but this gives us a local fallback.
         isDemo: state.isDemo,
+        user: state.user,
       }),
     },
   ),
@@ -600,8 +641,10 @@ if (isSupabaseConfigured()) {
         console.log(
           "🔔 Setting user from auth state change (SIGNED_IN) — fetching profile...",
         );
-        fetchAndSetProfile(session.user, (state) =>
-          useAuthStore.setState(state),
+        fetchAndSetProfile(
+          session.user,
+          (state) => useAuthStore.setState(state),
+          useAuthStore.getState,
         );
       }
     } else if (event === "TOKEN_REFRESHED" && session?.user) {
