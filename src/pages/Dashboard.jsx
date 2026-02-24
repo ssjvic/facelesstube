@@ -174,11 +174,6 @@ export default function Dashboard() {
     checkTransformersAvailable().then(setAiVoiceAvailable);
   }, []);
 
-  // Load library videos on mount
-  useEffect(() => {
-    loadLibraryVideos();
-  }, []);
-
   // Load generated videos on mount
   useEffect(() => {
     loadVideos(user?.id || "__local__");
