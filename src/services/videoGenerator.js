@@ -310,6 +310,7 @@ export async function createVideoWithLibrary(
   onProgress,
   videoId,
   photoUrls = [],
+  musicBlob = null,
 ) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -432,20 +433,22 @@ export async function createVideoWithLibrary(
 
       const videoStream = canvas.captureStream(30);
 
-      if (audioBlob) {
+      if (audioBlob || musicBlob) {
         try {
           audioContext = new (
             window.AudioContext || window.webkitAudioContext
           )();
-          const arrayBuffer = await audioBlob.arrayBuffer();
-          audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
           audioDestination = audioContext.createMediaStreamDestination();
+
+          if (audioBlob) {
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            console.log("🔊 Audio:", audioBuffer.duration.toFixed(1), "seg");
+          }
 
           const audioTrack = audioDestination.stream.getAudioTracks()[0];
           const videoTrack = videoStream.getVideoTracks()[0];
           combinedStream = new MediaStream([videoTrack, audioTrack]);
-
-          console.log("🔊 Audio:", audioBuffer.duration.toFixed(1), "seg");
         } catch (e) {
           console.warn("Error audio:", e);
           combinedStream = videoStream;
@@ -483,12 +486,36 @@ export async function createVideoWithLibrary(
 
       mediaRecorder.start(100);
 
-      // Iniciar audio
+      // Iniciar audio (TTS voice)
       if (audioContext && audioBuffer && audioDestination) {
+        // TTS voice at full volume
+        const ttsGain = audioContext.createGain();
+        ttsGain.gain.value = 1.0;
         const source = audioContext.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(audioDestination);
+        source.connect(ttsGain);
+        ttsGain.connect(audioDestination);
         source.start(0);
+      }
+
+      // Mix in background music (if provided)
+      if (musicBlob && audioContext && audioDestination) {
+        try {
+          const musicArrayBuffer = await musicBlob.arrayBuffer();
+          const musicBuffer =
+            await audioContext.decodeAudioData(musicArrayBuffer);
+          const musicSource = audioContext.createBufferSource();
+          musicSource.buffer = musicBuffer;
+          musicSource.loop = true; // Loop music to fill entire video
+          const musicGain = audioContext.createGain();
+          musicGain.gain.value = 0.15; // Low volume so TTS is clear
+          musicSource.connect(musicGain);
+          musicGain.connect(audioDestination);
+          musicSource.start(0);
+          console.log("🎵 Background music mixed in (gain=0.15)");
+        } catch (e) {
+          console.warn("⚠️ Failed to mix background music:", e);
+        }
       }
 
       // Iniciar reproducción del video de fondo
@@ -509,13 +536,14 @@ export async function createVideoWithLibrary(
 
       // Calculate actual video duration based on audio or word count
       // Audio duration is the ground truth; fall back to word-count estimate
-      const totalDurationSec = audioBuffer
+      const rawDuration = audioBuffer
         ? Math.ceil(audioBuffer.duration)
         : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.5));
-      const numScenes = Math.min(
-        scenes.length,
-        Math.max(6, Math.ceil(totalDurationSec / 5)),
-      );
+      // HARD CAP: YouTube Shorts must be ≤60 seconds
+      const totalDurationSec = Math.min(rawDuration, 60);
+      // CAP numScenes to scenes.length — never repeat text!
+      const rawSceneCount = Math.max(6, Math.ceil(totalDurationSec / 5));
+      const numScenes = Math.min(scenes.length, rawSceneCount);
       const fps = 15;
       const sceneDuration = (totalDurationSec / numScenes) * 1000; // ms per scene
       const framesPerScene = Math.round((sceneDuration / 1000) * fps);
@@ -654,15 +682,20 @@ export async function createVideoWithLibrary(
 
           // ============ WATERMARK ============
           ctx.save();
-          ctx.font = "bold 28px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.font = "bold 96px Inter, Segoe UI, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-          ctx.shadowBlur = 6;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 1;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.50)";
-          ctx.fillText("facelesstube.app", canvas.width / 2, canvas.height / 2);
+          // Strong shadow for visibility on any background
+          ctx.shadowColor = "rgba(0, 0, 0, 1)";
+          ctx.shadowBlur = 14;
+          ctx.shadowOffsetX = 3;
+          ctx.shadowOffsetY = 3;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.80)";
+          ctx.fillText(
+            "facelesstube.app",
+            canvas.width / 2,
+            canvas.height - 80,
+          );
           ctx.restore();
 
           // Barra de progreso
@@ -1138,15 +1171,19 @@ export async function createVideo(script, images, audioBlob, onProgress) {
 
           // ============ WATERMARK ============
           ctx.save();
-          ctx.font = "bold 28px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.font = "bold 96px Inter, Segoe UI, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-          ctx.shadowBlur = 6;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 1;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.50)";
-          ctx.fillText("facelesstube.app", canvas.width / 2, canvas.height / 2);
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 2;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+          ctx.fillText(
+            "facelesstube.app",
+            canvas.width / 2,
+            canvas.height - 80,
+          );
           ctx.restore();
 
           // Barra de progreso
