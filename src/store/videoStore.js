@@ -319,12 +319,17 @@ export const useVideoStore = create((set, get) => ({
     if (isSupabaseConfigured() && userId) {
       try {
         const dbUpdates = {};
+        if (updates.title !== undefined) dbUpdates.title = updates.title;
+        if (updates.description !== undefined)
+          dbUpdates.description = updates.description;
         if (updates.youtubeUrl) dbUpdates.youtube_url = updates.youtubeUrl;
         if (updates.youtubeVideoId)
           dbUpdates.youtube_video_id = updates.youtubeVideoId;
         if (updates.status) dbUpdates.status = updates.status;
 
-        await supabase.from("videos").update(dbUpdates).eq("id", videoId);
+        if (Object.keys(dbUpdates).length > 0) {
+          await supabase.from("videos").update(dbUpdates).eq("id", videoId);
+        }
       } catch (error) {
         console.error("Error updating video:", error);
       }
@@ -354,6 +359,10 @@ export const useVideoStore = create((set, get) => ({
       videos: state.videos.map((v) =>
         v.id === videoId ? { ...v, ...updates } : v,
       ),
+      currentVideo:
+        state.currentVideo?.id === videoId
+          ? { ...state.currentVideo, ...updates }
+          : state.currentVideo,
     }));
 
     // Update localStorage metadata

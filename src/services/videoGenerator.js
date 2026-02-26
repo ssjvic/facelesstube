@@ -706,16 +706,16 @@ export async function createVideoWithLibrary(
           // (Usar la misma lógica de subtítulos mejorada)
           drawViralSubtitles(ctx, canvas, sceneText, time);
 
-          // ============ WATERMARK (small, centered) ============
+          // ============ WATERMARK (branding — visible for free users) ============
           ctx.save();
-          ctx.font = "bold 28px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.font = "bold 48px Inter, Segoe UI, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-          ctx.shadowBlur = 6;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 1;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+          ctx.shadowBlur = 10;
+          ctx.shadowOffsetX = 2;
+          ctx.shadowOffsetY = 2;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
           ctx.fillText("facelesstube.app", canvas.width / 2, canvas.height / 2);
           ctx.restore();
 
