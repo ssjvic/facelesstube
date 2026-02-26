@@ -499,23 +499,46 @@ export async function createVideoWithLibrary(
       }
 
       // Mix in background music (if provided)
+      console.log(
+        `🎵 Music debug: musicBlob=${!!musicBlob}, type=${musicBlob?.type}, size=${musicBlob?.size}, audioContext=${!!audioContext}, audioDestination=${!!audioDestination}`,
+      );
       if (musicBlob && audioContext && audioDestination) {
         try {
           const musicArrayBuffer = await musicBlob.arrayBuffer();
-          const musicBuffer =
-            await audioContext.decodeAudioData(musicArrayBuffer);
+          console.log(
+            `🎵 Music arrayBuffer size: ${musicArrayBuffer.byteLength}`,
+          );
+          const musicBuffer = await audioContext.decodeAudioData(
+            musicArrayBuffer.slice(0),
+          );
+          console.log(
+            `🎵 Music decoded: ${musicBuffer.duration.toFixed(1)}s, ${musicBuffer.numberOfChannels}ch`,
+          );
           const musicSource = audioContext.createBufferSource();
           musicSource.buffer = musicBuffer;
-          musicSource.loop = true; // Loop music to fill entire video
+          musicSource.loop = true;
           const musicGain = audioContext.createGain();
-          musicGain.gain.value = 0.15; // Low volume so TTS is clear
+          musicGain.gain.value = 0.2; // Background music volume
           musicSource.connect(musicGain);
           musicGain.connect(audioDestination);
           musicSource.start(0);
-          console.log("🎵 Background music mixed in (gain=0.15)");
+          console.log("🎵 ✅ Background music playing (gain=0.20)");
         } catch (e) {
-          console.warn("⚠️ Failed to mix background music:", e);
+          console.error("🎵 ❌ Failed to mix background music:", e);
+          console.error("🎵 Music blob details:", {
+            type: musicBlob?.type,
+            size: musicBlob?.size,
+          });
         }
+      } else {
+        console.warn(
+          "🎵 ⚠️ No music: blob=",
+          !!musicBlob,
+          "ctx=",
+          !!audioContext,
+          "dest=",
+          !!audioDestination,
+        );
       }
 
       // Iniciar reproducción del video de fondo
@@ -539,8 +562,11 @@ export async function createVideoWithLibrary(
       const rawDuration = audioBuffer
         ? Math.ceil(audioBuffer.duration)
         : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.5));
-      // HARD CAP: YouTube Shorts must be ≤60 seconds
-      const totalDurationSec = Math.min(rawDuration, 60);
+      // HARD CAP: YouTube Shorts ≤68 seconds
+      const totalDurationSec = Math.min(rawDuration, 68);
+      console.log(
+        `⏱️ Duration: raw=${rawDuration}s, capped=${totalDurationSec}s`,
+      );
       // CAP numScenes to scenes.length — never repeat text!
       const rawSceneCount = Math.max(6, Math.ceil(totalDurationSec / 5));
       const numScenes = Math.min(scenes.length, rawSceneCount);
@@ -680,22 +706,17 @@ export async function createVideoWithLibrary(
           // (Usar la misma lógica de subtítulos mejorada)
           drawViralSubtitles(ctx, canvas, sceneText, time);
 
-          // ============ WATERMARK ============
+          // ============ WATERMARK (small, centered) ============
           ctx.save();
-          ctx.font = "bold 96px Inter, Segoe UI, system-ui, sans-serif";
+          ctx.font = "bold 28px Inter, Segoe UI, system-ui, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          // Strong shadow for visibility on any background
-          ctx.shadowColor = "rgba(0, 0, 0, 1)";
-          ctx.shadowBlur = 14;
-          ctx.shadowOffsetX = 3;
-          ctx.shadowOffsetY = 3;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.80)";
-          ctx.fillText(
-            "facelesstube.app",
-            canvas.width / 2,
-            canvas.height - 80,
-          );
+          ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+          ctx.shadowBlur = 6;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+          ctx.fillText("facelesstube.app", canvas.width / 2, canvas.height / 2);
           ctx.restore();
 
           // Barra de progreso

@@ -51,7 +51,9 @@ import {
   getAIVoiceStatus,
 } from "../services/aiVoiceService";
 
-import { isYouTubeConnected, uploadVideo } from "../services/youtubeService";
+import { isYoutubeConnected, uploadToYoutube } from "../services/youtube";
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
 import { isServiceConfigured } from "../config/apiConfig";
 import { VIDEO_TEMPLATES, getRandomIdea } from "../services/videoTemplates";
 import {
@@ -98,6 +100,7 @@ export default function Dashboard() {
   const [tipMessage, setTipMessage] = useState("");
   const [uploadStatus, setUploadStatus] = useState(null); // null | 'uploading' | 'success' | 'error'
   const [uploadError, setUploadError] = useState("");
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem("facelesstube_onboarding_done");
@@ -395,8 +398,16 @@ export default function Dashboard() {
           idea,
           videoLanguage,
           selectedTemplate,
+          user?.id,
         );
       } catch (firstErr) {
+        // If 429 rate limit, don't retry
+        if (
+          firstErr.message.includes("límite") ||
+          firstErr.message.includes("limit")
+        ) {
+          throw firstErr;
+        }
         // Retry once if AI fails (intermittent issues)
         console.warn("First AI attempt failed, retrying...", firstErr);
         await new Promise((r) => setTimeout(r, 2000));
@@ -404,6 +415,7 @@ export default function Dashboard() {
           idea,
           videoLanguage,
           selectedTemplate,
+          user?.id,
         );
       }
       stopSlowProgress();
@@ -658,6 +670,28 @@ export default function Dashboard() {
       // Get video ID for cache lookup
       const bgVideoId = null;
 
+      // Load music blob from IndexedDB (selectedMusic is metadata, not a blob!)
+      let musicBlob = null;
+      if (selectedMusic?.id) {
+        try {
+          musicBlob = await getTrackBlob(selectedMusic.id);
+          if (musicBlob) {
+            console.log(
+              "🎵 Music blob loaded:",
+              (musicBlob.size / 1024 / 1024).toFixed(1),
+              "MB",
+            );
+          } else {
+            console.warn(
+              "⚠️ Music track not found in IndexedDB:",
+              selectedMusic.id,
+            );
+          }
+        } catch (e) {
+          console.warn("⚠️ Failed to load music blob:", e);
+        }
+      }
+
       const videoBlob = await createVideoWithLibrary(
         scriptForRenderer,
         videoDataUrl,
@@ -668,6 +702,7 @@ export default function Dashboard() {
         },
         bgVideoId,
         photoUrls,
+        musicBlob,
       );
 
       stopSlowProgress();
@@ -682,6 +717,7 @@ export default function Dashboard() {
       const videoUrl = URL.createObjectURL(videoBlob);
 
       // Save to store (IndexedDB + localStorage)
+      const thumbnailUrl = photoUrls.length > 0 ? photoUrls[0] : null;
       await completeGeneration(
         {
           title,
@@ -694,6 +730,7 @@ export default function Dashboard() {
           language: videoLanguage,
           blob: videoBlob,
           videoUrl,
+          thumbnailUrl,
           duration: Math.round(fullScript.split(" ").length / 2.5), // estimate
         },
         user?.id,
@@ -727,7 +764,7 @@ export default function Dashboard() {
     setUploadStatus(null);
     setUploadError("");
 
-    if (!isYouTubeConnected()) {
+    if (!isYoutubeConnected()) {
       setUploadStatus("error");
       setUploadError(
         "⚠️ Conecta tu canal de YouTube primero.\nVe a Mi Cuenta → Conectar Canal.",
@@ -746,20 +783,18 @@ export default function Dashboard() {
       setUploadStatus("uploading");
       const videoBlob =
         blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob());
-      const result = await uploadVideo(
-        videoBlob,
-        {
-          title: currentVideo.title,
-          description: currentVideo.description,
-          tags: currentVideo.tags || [],
-          privacyStatus: "private",
-        },
-        (percent) => {
-          console.log(`Upload progress: ${percent.toFixed(0)}%`);
-        },
-      );
-      console.log("Upload success:", result);
-      setUploadStatus("success");
+      const result = await uploadToYoutube(videoBlob, {
+        title: currentVideo.title,
+        description: currentVideo.description,
+        tags: currentVideo.tags || [],
+        privacyStatus: "private",
+      });
+      if (result.success) {
+        console.log("Upload success:", result.videoId);
+        setUploadStatus("success");
+      } else {
+        throw new Error(result.error || "Error al subir el video");
+      }
     } catch (error) {
       console.error("Upload error:", error);
       setUploadStatus("error");
@@ -797,9 +832,46 @@ export default function Dashboard() {
           .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g, "")
           .trim() || "FacelessTube_video";
       const fileName = `${safeTitle}.webm`;
-      const file = new File([videoBlob], fileName, { type: "video/webm" });
 
-      // Try Share API first (mobile-friendly — save to gallery, share to apps)
+      // Option 1: Capacitor Filesystem (Android native save)
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // Convert blob to base64
+          const reader = new FileReader();
+          const base64Data = await new Promise((resolve, reject) => {
+            reader.onloadend = () => resolve(reader.result.split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(videoBlob);
+          });
+
+          setIsDownloading(true);
+          setUploadStatus("downloading");
+          await Filesystem.writeFile({
+            path: `Download/${fileName}`,
+            data: base64Data,
+            directory: Directory.ExternalStorage,
+            recursive: true,
+          });
+
+          setIsDownloading(false);
+          setUploadStatus("success");
+          setUploadError("✅ Video guardado en Descargas");
+          // Show success toast-like feedback
+          setTimeout(() => {
+            setUploadStatus(null);
+            setUploadError("");
+          }, 3000);
+          return;
+        } catch (fsErr) {
+          console.warn(
+            "Capacitor Filesystem save failed, trying Share API:",
+            fsErr,
+          );
+        }
+      }
+
+      // Option 2: Share API (mobile-friendly — save to gallery, share to apps)
+      const file = new File([videoBlob], fileName, { type: "video/webm" });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({
@@ -815,7 +887,9 @@ export default function Dashboard() {
         }
       }
 
-      // Fallback: direct download (desktop or older mobile)
+      // Option 3: Fallback direct download (desktop or older mobile)
+      setIsDownloading(true);
+      setUploadStatus("downloading");
       const url = URL.createObjectURL(videoBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -825,6 +899,13 @@ export default function Dashboard() {
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setIsDownloading(false);
+      setUploadStatus("success");
+      setUploadError("✅ Video descargado");
+      setTimeout(() => {
+        setUploadStatus(null);
+        setUploadError("");
+      }, 3000);
     } catch (e) {
       console.error("Download/Share error:", e);
       setUploadStatus("error");
@@ -1021,8 +1102,10 @@ export default function Dashboard() {
                                             }
                                         `}
                   >
-                    <span className="text-xl">{lang.flag}</span>
-                    <span className="text-sm">{lang.code.toUpperCase()}</span>
+                    <span className="text-lg">{lang.flag}</span>
+                    <span className="text-sm font-bold">
+                      {lang.code.toUpperCase()}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1064,8 +1147,6 @@ export default function Dashboard() {
                         es: "es",
                         en: "en",
                         pt: "pt",
-                        fr: "fr",
-                        de: "de",
                       };
                       const aiLang = langMap[videoLanguage] || "es";
                       await loadAIVoiceModel((msg) => console.log(msg), aiLang);
@@ -1287,41 +1368,79 @@ export default function Dashboard() {
                     ))}
                   </div>
 
-                  {/* Clips grid */}
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {getPreinstalledByCategory(clipCategory).map((clip) => (
-                      <button
-                        key={clip.id}
-                        onClick={() => setSelectedClip(clip)}
-                        className={`relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all ${
-                          selectedClip?.id === clip.id
-                            ? "border-emerald-400 ring-2 ring-emerald-400/30"
-                            : "border-transparent hover:border-white/20"
-                        }`}
-                      >
-                        <img
-                          src={clip.thumbnail}
-                          alt={clip.name}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.target.src =
-                              'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 178"><rect fill="%23222" width="100" height="178"/><text x="50" y="90" text-anchor="middle" fill="%23555" font-size="24">🎬</text></svg>';
-                          }}
-                        />
-                        {selectedClip?.id === clip.id && (
-                          <div className="absolute inset-0 bg-emerald-400/20 flex items-center justify-center">
-                            <CheckCircle2 size={16} className="text-white" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5">
-                          <p className="text-[8px] text-white truncate">
-                            {clip.name}
-                          </p>
+                  {/* Clips grid — lightweight tiles, no heavy video elements */}
+                  {(() => {
+                    const allClips = getPreinstalledByCategory(clipCategory);
+                    const INITIAL_COUNT = 6;
+                    const showAll = clipCategory + "_expanded";
+                    const isExpanded = localStorage.getItem(showAll) === "true";
+                    const visibleClips = isExpanded
+                      ? allClips
+                      : allClips.slice(0, INITIAL_COUNT);
+                    const categoryEmojis = {
+                      cinematic: "🎬",
+                      luxury: "💎",
+                      aesthetic: "🌸",
+                      gaming: "🎮",
+                    };
+                    return (
+                      <>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {visibleClips.map((clip) => (
+                            <button
+                              key={clip.id}
+                              onClick={() => setSelectedClip(clip)}
+                              className={`relative aspect-[9/16] rounded-lg overflow-hidden border-2 transition-all flex flex-col items-center justify-center ${
+                                selectedClip?.id === clip.id
+                                  ? "border-emerald-400 ring-2 ring-emerald-400/30 bg-emerald-400/10"
+                                  : "border-transparent hover:border-white/20 bg-dark-800/80"
+                              }`}
+                            >
+                              <span className="text-2xl mb-1">
+                                {categoryEmojis[clip.category] || "🎬"}
+                              </span>
+                              <p className="text-[9px] text-white/70 text-center px-1 leading-tight truncate w-full">
+                                {clip.name}
+                              </p>
+                              {selectedClip?.id === clip.id && (
+                                <div className="absolute inset-0 bg-emerald-400/20 flex items-center justify-center">
+                                  <CheckCircle2
+                                    size={16}
+                                    className="text-white"
+                                  />
+                                </div>
+                              )}
+                            </button>
+                          ))}
                         </div>
-                      </button>
-                    ))}
-                  </div>
+                        {allClips.length > INITIAL_COUNT && !isExpanded && (
+                          <button
+                            onClick={() => {
+                              localStorage.setItem(showAll, "true");
+                              setClipCategory((prev) => prev); // force re-render
+                              window.dispatchEvent(new Event("storage"));
+                            }}
+                            className="w-full mt-2 p-2 rounded-lg border border-white/10 text-white/50 text-xs hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
+                          >
+                            Ver más clips ({allClips.length - INITIAL_COUNT}{" "}
+                            más) →
+                          </button>
+                        )}
+                        {isExpanded && allClips.length > INITIAL_COUNT && (
+                          <button
+                            onClick={() => {
+                              localStorage.removeItem(showAll);
+                              setClipCategory((prev) => prev);
+                              window.dispatchEvent(new Event("storage"));
+                            }}
+                            className="w-full mt-2 p-2 rounded-lg border border-white/10 text-white/40 text-xs hover:border-white/20 transition-all"
+                          >
+                            Mostrar menos ↑
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
 
                   {/* Selected clip indicator */}
                   {selectedClip && (
@@ -1559,27 +1678,41 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Title & description */}
+            {/* Title & description — EDITABLE */}
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">
-                {t("dashboard.title_label")}
+                ✏️ {t("dashboard.title_label")}
               </label>
               <input
                 type="text"
                 value={currentVideo.title || ""}
                 className="input-glass"
-                readOnly
+                onChange={(e) =>
+                  updateVideo(
+                    currentVideo.id,
+                    { title: e.target.value },
+                    user?.id,
+                  )
+                }
+                placeholder="Escribe el título de tu video..."
               />
             </div>
 
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">
-                {t("dashboard.description_label")}
+                ✏️ {t("dashboard.description_label")}
               </label>
               <textarea
                 value={currentVideo.description || ""}
                 className="input-glass min-h-[100px] resize-none"
-                readOnly
+                onChange={(e) =>
+                  updateVideo(
+                    currentVideo.id,
+                    { description: e.target.value },
+                    user?.id,
+                  )
+                }
+                placeholder="Escribe la descripción de tu video..."
               />
             </div>
 
@@ -1728,15 +1861,22 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="btn-secondary flex items-center justify-center gap-2 px-4 flex-1"
+                  disabled={isDownloading}
+                  className={`btn-secondary flex items-center justify-center gap-2 px-4 flex-1 ${isDownloading ? "opacity-70 cursor-wait" : ""}`}
                   title="Guardar o Compartir video"
                 >
-                  {navigator.share ? (
+                  {isDownloading ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : navigator.share ? (
                     <Share2 size={18} />
                   ) : (
                     <Download size={18} />
                   )}
-                  {navigator.share ? "Compartir" : t("dashboard.download")}
+                  {isDownloading
+                    ? "Descargando..."
+                    : navigator.share
+                      ? "Compartir"
+                      : t("dashboard.download")}
                 </button>
                 <button
                   onClick={() => setShowEmailModal(true)}

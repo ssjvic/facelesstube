@@ -19,7 +19,7 @@ export const LANGUAGES = {
   pt: {
     code: "pt",
     name: "Português",
-    flag: "🇧🇷",
+    flag: "🇵🇹",
   },
 };
 

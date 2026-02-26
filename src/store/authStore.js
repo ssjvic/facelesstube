@@ -15,7 +15,7 @@ const TIERS = {
   starter: {
     name: "Starter",
     price: 9,
-    priceAnnual: 99,
+    priceAnnual: 90,
     videosPerMonth: 30,
     maxDuration: 600, // 10 min
     watermark: false,
@@ -120,9 +120,12 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
 
   const serverUser = buildUserFromSession(sessionUser, profile);
 
-  // SAFETY: If we have locally persisted user data with a higher video count,
-  // use the higher value to prevent accidental resets on reinstall/re-login.
-  // This can happen if db.updateUser silently failed in a previous session.
+  // SAFETY: Compare multiple sources to prevent video count resets.
+  // Sources: (1) zustand in-memory state, (2) localStorage backup, (3) server profile
+  // Use the HIGHEST videosThisMonth value across all sources.
+  let highestCount = serverUser.videosThisMonth || 0;
+
+  // Check zustand in-memory state
   let currentState = null;
   try {
     currentState = typeof getState === "function" ? getState() : null;
@@ -131,18 +134,47 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
   }
   const localUser = currentState?.user;
   if (localUser && localUser.id === serverUser.id) {
-    if ((localUser.videosThisMonth || 0) > (serverUser.videosThisMonth || 0)) {
-      console.warn(
-        `⚠️ Local videosThisMonth (${localUser.videosThisMonth}) > server (${serverUser.videosThisMonth}). Syncing up.`,
-      );
-      serverUser.videosThisMonth = localUser.videosThisMonth;
-      // Also push the higher count to the server
-      db.updateUser(sessionUser.id, {
-        videos_this_month: localUser.videosThisMonth,
-      }).then((r) => {
-        if (!r) console.warn("⚠️ Failed to sync videosThisMonth to server");
-      });
+    highestCount = Math.max(highestCount, localUser.videosThisMonth || 0);
+  }
+
+  // Also check localStorage backup (survives app kill even if zustand hasn't hydrated)
+  try {
+    const lsRaw = localStorage.getItem("facelesstube_user");
+    if (lsRaw) {
+      const lsUser = JSON.parse(lsRaw);
+      if (lsUser && lsUser.id === serverUser.id) {
+        highestCount = Math.max(highestCount, lsUser.videosThisMonth || 0);
+      }
     }
+  } catch (e) {
+    /* ignore parse errors */
+  }
+
+  // Also check the zustand persisted store (belt and suspenders)
+  try {
+    const persistedRaw = localStorage.getItem("facelesstube-auth");
+    if (persistedRaw) {
+      const persisted = JSON.parse(persistedRaw);
+      const pUser = persisted?.state?.user;
+      if (pUser && pUser.id === serverUser.id) {
+        highestCount = Math.max(highestCount, pUser.videosThisMonth || 0);
+      }
+    }
+  } catch (e) {
+    /* ignore parse errors */
+  }
+
+  if (highestCount > (serverUser.videosThisMonth || 0)) {
+    console.warn(
+      `⚠️ Local videosThisMonth (${highestCount}) > server (${serverUser.videosThisMonth}). Syncing up.`,
+    );
+    serverUser.videosThisMonth = highestCount;
+    // Also push the higher count to the server
+    db.updateUser(sessionUser.id, {
+      videos_this_month: highestCount,
+    }).then((r) => {
+      if (!r) console.warn("⚠️ Failed to sync videosThisMonth to server");
+    });
   }
 
   set({
