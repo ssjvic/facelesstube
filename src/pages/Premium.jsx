@@ -10,8 +10,10 @@ import {
   Image,
   Gauge,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { STRIPE_PRICES, createCheckoutSession } from "../config/stripe";
 
 // Premium tools marketplace
 const premiumTools = [
@@ -55,6 +57,7 @@ const tiers = [
     name: "Free",
     icon: Zap,
     price: { monthly: 0, annual: 0 },
+    priceId: null,
     features: ["3-5 videos/mes", "Marca de agua", "1 min max", "Voces básicas"],
     limitations: ["Marca de agua", "Duración limitada"],
     badge: "badge-free",
@@ -64,6 +67,7 @@ const tiers = [
     name: "Starter",
     icon: Sparkles,
     price: { monthly: 9, annual: 90 },
+    priceId: STRIPE_PRICES.starter.monthly,
     features: [
       "30 videos/mes",
       "Sin marca de agua",
@@ -73,10 +77,11 @@ const tiers = [
     badge: "badge-starter",
   },
   {
-    id: "pro",
-    name: "Pro",
+    id: "creator",
+    name: "Creator",
     icon: Crown,
     price: { monthly: 19, annual: 190 },
+    priceId: STRIPE_PRICES.creator.monthly,
     features: [
       "100 videos/mes",
       "Sin marca de agua",
@@ -88,10 +93,11 @@ const tiers = [
     badge: "badge-pro",
   },
   {
-    id: "unlimited",
-    name: "Unlimited",
+    id: "pro",
+    name: "Pro",
     icon: Infinity,
-    price: { monthly: 29, annual: 290 },
+    price: { monthly: 39, annual: 390 },
+    priceId: STRIPE_PRICES.pro.monthly,
     features: [
       "Videos ilimitados",
       "Sin límites",
@@ -125,16 +131,35 @@ export default function Premium() {
     loadProducts();
   }, []);
 
-  const handleUpgrade = async (tierId) => {
-    if (tierId === "free" || tierId === user?.tier) return;
+  const handleUpgrade = async (tier) => {
+    if (tier.id === "free" || tier.id === user?.tier) return;
+    if (!tier.priceId) return;
 
     const { toast } = await import("../store/toastStore");
 
-    // For now, show coming soon message since billing is not yet configured
-    toast.info(
-      "🚀 ¡Próximamente! Las suscripciones estarán disponibles muy pronto.",
-    );
-    return;
+    if (!user?.id || !user?.email) {
+      toast.error("Debes iniciar sesión para suscribirte.");
+      return;
+    }
+
+    setIsLoading(tier.id);
+    try {
+      const result = await createCheckoutSession(
+        tier.priceId,
+        user.id,
+        user.email,
+        true, // apply Early Bird coupon
+      );
+
+      if (!result.success && result.error) {
+        toast.error(`Error al iniciar el pago: ${result.error}`);
+      }
+      // On success the page redirects to Stripe — no further action needed
+    } catch (e) {
+      toast.error("No se pudo conectar con el servidor de pagos.");
+    } finally {
+      setIsLoading(null);
+    }
   };
 
   const handleToolPurchase = (tool) => {
@@ -259,10 +284,10 @@ export default function Premium() {
               </ul>
 
               <button
-                onClick={() => handleUpgrade(tier.id)}
-                disabled={isCurrentPlan}
+                onClick={() => handleUpgrade(tier)}
+                disabled={isCurrentPlan || isLoading === tier.id}
                 className={`
-                  w-full py-3 rounded-xl font-semibold transition-all
+                  w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2
                   ${
                     isCurrentPlan
                       ? "bg-white/5 text-white/40 cursor-not-allowed"
@@ -272,7 +297,16 @@ export default function Premium() {
                   }
                 `}
               >
-                {isCurrentPlan ? "Plan Actual" : "Elegir Plan"}
+                {isLoading === tier.id ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Redirigiendo...
+                  </>
+                ) : isCurrentPlan ? (
+                  "Plan Actual"
+                ) : (
+                  "Elegir Plan"
+                )}
               </button>
             </div>
           );
