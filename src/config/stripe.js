@@ -4,26 +4,26 @@
 // Stripe publishable key from env
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 
-// Price IDs from Stripe Dashboard (TEST mode)
+// Price IDs from Stripe Dashboard (LIVE mode)
 // Account: acct_1GYkSxBOwXqiDvFM
 export const STRIPE_PRICES = {
   starter: {
-    monthly: "price_1T62zQBOwXqiDvFMfQHmxn6h", // $9/mo
+    monthly: "price_1T6fmFBOwXqiDvFMMcsDLcNw", // $9/mo
   },
   creator: {
-    monthly: "price_1T630LBOwXqiDvFM96pEfpky", // $19/mo
+    monthly: "price_1T6fmFBOwXqiDvFM5LIiuHNR", // $19/mo
   },
   pro: {
-    monthly: "price_1T6318BOwXqiDvFMm0CtoVJX", // $39/mo
+    monthly: "price_1T6fmGBOwXqiDvFMR44xMt1g", // $39/mo
   },
-  // ⚠️ Solo para pruebas — eliminar antes de producción
+  // ⚠️ Solo para pruebas — cobro real de $0.01
   test: {
-    monthly: "price_1T63EoBOwXqiDvFMX2gebq5r", // $0.01/mo TEST ONLY
+    monthly: "price_1T6fmGBOwXqiDvFMBnKlF47a", // $0.01/mo TEST ONLY
   },
 };
 
 // Early Bird coupon - 20% forever, max 100 redemptions
-export const STRIPE_COUPON_ID = "JaghrCfF";
+export const STRIPE_COUPON_ID = "x1YT5QLm";
 
 // Check if Stripe is configured
 export const isStripeConfigured = () => {

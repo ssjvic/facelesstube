@@ -15,11 +15,8 @@ import {
   Mic,
   Bot,
   Shuffle,
-  Music,
   Copy,
   Check,
-  Plus,
-  Trash2,
   Camera,
   Image,
   Zap,
@@ -56,13 +53,7 @@ import { Capacitor } from "@capacitor/core";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import { isServiceConfigured } from "../config/apiConfig";
 import { VIDEO_TEMPLATES, getRandomIdea } from "../services/videoTemplates";
-import {
-  saveCustomTrack,
-  getCustomTracks,
-  deleteCustomTrack,
-  getTrackBlob,
-  MUSIC_CATEGORIES,
-} from "../services/musicLibrary";
+
 import ApiTutorial from "../components/ui/ApiTutorial";
 import EmailModal from "../components/ui/EmailModal";
 import WelcomeOnboarding from "../components/ui/WelcomeOnboarding";
@@ -119,42 +110,8 @@ export default function Dashboard() {
   // Template / Niche state
   const [selectedTemplate, setSelectedTemplate] = useState("general");
 
-  // Music state
-  const [selectedMusic, setSelectedMusic] = useState(null);
-  const [customTracks, setCustomTracks] = useState([]);
-  const [musicCategory, setMusicCategory] = useState("all");
-  const musicInputRef = useRef(null);
-
   // Hashtag copy state
   const [hashtagsCopied, setHashtagsCopied] = useState(false);
-
-  // Load custom music tracks
-  useEffect(() => {
-    getCustomTracks().then(setCustomTracks);
-  }, []);
-
-  const handleMusicUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("audio/")) {
-      alert("Solo se permiten archivos de audio (mp3, wav, ogg, etc.)");
-      return;
-    }
-    const id = await saveCustomTrack(file, {
-      name: file.name.replace(/\.[^.]+$/, ""),
-    });
-    if (id) {
-      const updated = await getCustomTracks();
-      setCustomTracks(updated);
-    }
-  };
-
-  const handleDeleteTrack = async (trackId) => {
-    await deleteCustomTrack(trackId);
-    const updated = await getCustomTracks();
-    setCustomTracks(updated);
-    if (selectedMusic?.id === trackId) setSelectedMusic(null);
-  };
 
   const handleRandomIdea = () => {
     const randomIdea = getRandomIdea(selectedTemplate);
@@ -670,28 +627,6 @@ export default function Dashboard() {
       // Get video ID for cache lookup
       const bgVideoId = null;
 
-      // Load music blob from IndexedDB (selectedMusic is metadata, not a blob!)
-      let musicBlob = null;
-      if (selectedMusic?.id) {
-        try {
-          musicBlob = await getTrackBlob(selectedMusic.id);
-          if (musicBlob) {
-            console.log(
-              "🎵 Music blob loaded:",
-              (musicBlob.size / 1024 / 1024).toFixed(1),
-              "MB",
-            );
-          } else {
-            console.warn(
-              "⚠️ Music track not found in IndexedDB:",
-              selectedMusic.id,
-            );
-          }
-        } catch (e) {
-          console.warn("⚠️ Failed to load music blob:", e);
-        }
-      }
-
       const videoBlob = await createVideoWithLibrary(
         scriptForRenderer,
         videoDataUrl,
@@ -702,7 +637,6 @@ export default function Dashboard() {
         },
         bgVideoId,
         photoUrls,
-        musicBlob,
       );
 
       stopSlowProgress();
@@ -1475,101 +1409,6 @@ export default function Dashboard() {
                         : "Elige un clip de arriba para usarlo como fondo"
                       : "Se generará un fondo gradiente animado que combina con tu contenido"}
                 </span>
-              </div>
-            </div>
-
-            {/* 🎵 Music Section */}
-            <div className="mb-4 md:mb-6">
-              <label className="block text-sm font-medium mb-2">
-                🎵 Música de fondo
-              </label>
-              <div className="p-3 rounded-xl bg-dark-600/50 border border-white/10">
-                {customTracks.length === 0 ? (
-                  <div className="text-center py-4">
-                    <Music size={24} className="text-white/30 mx-auto mb-2" />
-                    <p className="text-white/40 text-xs mb-3">
-                      Sube tu música IA (Suno, Udio, etc.)
-                    </p>
-                    <button
-                      onClick={() => musicInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-neon-purple/20 border border-neon-purple/40 rounded-lg text-neon-purple text-xs hover:bg-neon-purple/30 transition-all"
-                    >
-                      <Plus size={14} />
-                      Subir track
-                    </button>
-                    <input
-                      ref={musicInputRef}
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleMusicUpload}
-                      className="hidden"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <div className="space-y-1.5 max-h-[150px] overflow-y-auto mb-2">
-                      {customTracks.map((track) => (
-                        <div
-                          key={track.id}
-                          onClick={() =>
-                            setSelectedMusic(
-                              selectedMusic?.id === track.id ? null : track,
-                            )
-                          }
-                          className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${
-                            selectedMusic?.id === track.id
-                              ? "bg-neon-purple/20 border border-neon-purple/40"
-                              : "bg-white/5 border border-transparent hover:border-white/10"
-                          }`}
-                        >
-                          <Music
-                            size={14}
-                            className={
-                              selectedMusic?.id === track.id
-                                ? "text-neon-purple"
-                                : "text-white/40"
-                            }
-                          />
-                          <span className="text-xs text-white/80 flex-1 truncate">
-                            {track.name}
-                          </span>
-                          <span className="text-[10px] text-white/30">
-                            {(track.size / 1024 / 1024).toFixed(1)}MB
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTrack(track.id);
-                            }}
-                            className="text-white/30 hover:text-red-400 transition-colors"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-white/30">
-                        {selectedMusic
-                          ? `✓ ${selectedMusic.name}`
-                          : "Sin música (solo voz)"}
-                      </span>
-                      <button
-                        onClick={() => musicInputRef.current?.click()}
-                        className="text-xs text-neon-purple hover:underline flex items-center gap-1"
-                      >
-                        <Plus size={12} /> Agregar
-                      </button>
-                    </div>
-                    <input
-                      ref={musicInputRef}
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleMusicUpload}
-                      className="hidden"
-                    />
-                  </>
-                )}
               </div>
             </div>
 

@@ -108,6 +108,21 @@ const tiers = [
     ],
     badge: "badge-unlimited",
   },
+  {
+    id: "test",
+    name: "Test $0.01",
+    icon: Zap,
+    price: { monthly: 0.01, annual: 0.12 },
+    priceId: STRIPE_PRICES.test.monthly,
+    features: [
+      "⚠️ Solo para pruebas",
+      "Mismo acceso que Starter",
+      "Cobro real de $0.01",
+      "Tarjeta: 4242 4242 4242 4242",
+    ],
+    badge: "badge-starter",
+    testOnly: true,
+  },
 ];
 
 export default function Premium() {
@@ -210,7 +225,7 @@ export default function Premium() {
       </div>
 
       {/* Pricing cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-12">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8 md:mb-12">
         {tiers.map((tier) => {
           const isCurrentPlan = user?.tier === tier.id;
           const price =
@@ -222,12 +237,19 @@ export default function Premium() {
               className={`
                 glass-card p-4 md:p-6 relative
                 ${tier.popular ? "ring-2 ring-neon-purple" : ""}
+                ${tier.testOnly ? "ring-2 ring-orange-400/50" : ""}
                 ${isCurrentPlan ? "border-neon-cyan" : ""}
               `}
             >
               {tier.popular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-neon-purple text-dark-900 text-xs font-bold rounded-full">
                   POPULAR
+                </span>
+              )}
+
+              {tier.testOnly && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-400 text-dark-900 text-xs font-bold rounded-full">
+                  ⚠️ TEST
                 </span>
               )}
 
@@ -244,6 +266,7 @@ export default function Premium() {
                   ${tier.id === "free" ? "bg-white/10" : ""}
                   ${tier.id === "starter" ? "bg-neon-blue/20" : ""}
                   ${tier.id === "pro" ? "bg-neon-purple/20" : ""}
+                  ${tier.id === "test" ? "bg-orange-400/20" : ""}
                   ${tier.id === "unlimited" ? "bg-gradient-to-br from-neon-cyan/20 to-neon-pink/20" : ""}
                 `}
                 >
@@ -253,6 +276,7 @@ export default function Premium() {
                     ${tier.id === "free" ? "text-white/60" : ""}
                     ${tier.id === "starter" ? "text-neon-blue" : ""}
                     ${tier.id === "pro" ? "text-neon-purple" : ""}
+                    ${tier.id === "test" ? "text-orange-400" : ""}
                     ${tier.id === "unlimited" ? "text-neon-cyan" : ""}
                   `}
                   />

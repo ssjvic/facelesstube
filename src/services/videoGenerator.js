@@ -310,7 +310,6 @@ export async function createVideoWithLibrary(
   onProgress,
   videoId,
   photoUrls = [],
-  musicBlob = null,
 ) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -433,7 +432,7 @@ export async function createVideoWithLibrary(
 
       const videoStream = canvas.captureStream(30);
 
-      if (audioBlob || musicBlob) {
+      if (audioBlob) {
         try {
           audioContext = new (
             window.AudioContext || window.webkitAudioContext
@@ -496,49 +495,6 @@ export async function createVideoWithLibrary(
         source.connect(ttsGain);
         ttsGain.connect(audioDestination);
         source.start(0);
-      }
-
-      // Mix in background music (if provided)
-      console.log(
-        `🎵 Music debug: musicBlob=${!!musicBlob}, type=${musicBlob?.type}, size=${musicBlob?.size}, audioContext=${!!audioContext}, audioDestination=${!!audioDestination}`,
-      );
-      if (musicBlob && audioContext && audioDestination) {
-        try {
-          const musicArrayBuffer = await musicBlob.arrayBuffer();
-          console.log(
-            `🎵 Music arrayBuffer size: ${musicArrayBuffer.byteLength}`,
-          );
-          const musicBuffer = await audioContext.decodeAudioData(
-            musicArrayBuffer.slice(0),
-          );
-          console.log(
-            `🎵 Music decoded: ${musicBuffer.duration.toFixed(1)}s, ${musicBuffer.numberOfChannels}ch`,
-          );
-          const musicSource = audioContext.createBufferSource();
-          musicSource.buffer = musicBuffer;
-          musicSource.loop = true;
-          const musicGain = audioContext.createGain();
-          musicGain.gain.value = 0.2; // Background music volume
-          musicSource.connect(musicGain);
-          musicGain.connect(audioDestination);
-          musicSource.start(0);
-          console.log("🎵 ✅ Background music playing (gain=0.20)");
-        } catch (e) {
-          console.error("🎵 ❌ Failed to mix background music:", e);
-          console.error("🎵 Music blob details:", {
-            type: musicBlob?.type,
-            size: musicBlob?.size,
-          });
-        }
-      } else {
-        console.warn(
-          "🎵 ⚠️ No music: blob=",
-          !!musicBlob,
-          "ctx=",
-          !!audioContext,
-          "dest=",
-          !!audioDestination,
-        );
       }
 
       // Iniciar reproducción del video de fondo
