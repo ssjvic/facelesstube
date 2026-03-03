@@ -81,6 +81,26 @@ export const VIRAL_IDEAS = {
     "5 trucos de productividad que usa Elon Musk",
     "La razón por la que siempre tienes hambre",
     "Qué pasaría si la Luna desapareciera",
+    "El objeto más caro del mundo y por qué cuesta tanto",
+    "Por qué tus ojos ven colores que no existen",
+    "La razón científica por la que bostezamos",
+    "5 tecnologías prohibidas que no quieren que conozcas",
+    "Lo que pasa dentro de un avión cuando hay turbulencia",
+    "Por qué no puedes hacerte cosquillas a ti mismo",
+    "Las 3 decisiones que separan a pobres de ricos",
+    "Qué pasaría si todos dejaran de trabajar un día",
+    "El alimento más peligroso del mundo que comes a diario",
+    "Por qué los hospitales huelen así",
+    "Lo que Netflix no quiere que sepas",
+    "Cómo tu teléfono te espía sin que lo sepas",
+    "La verdad sobre el agua embotellada",
+    "Por qué los precios terminan en .99",
+    "El error que cometes al cargar tu teléfono",
+    "Qué pasa si no te bañas por un mes",
+    "La ciencia detrás del déjà vu",
+    "Por qué los mosquitos pican más a ciertas personas",
+    "El país más peligroso del mundo para turistas",
+    "5 señales de que eres más inteligente que el promedio",
   ],
   horror: [
     "La casa que Google Maps no quiere mostrarte",
@@ -93,6 +113,26 @@ export const VIRAL_IDEAS = {
     "El video de seguridad que la policía no quiso publicar",
     "La puerta que apareció en medio del bosque",
     "El último mensaje que envió antes de desaparecer",
+    "La habitación del hotel que no existe en ningún plano",
+    "Las fotos que encontraron en una cámara abandonada",
+    "El sonido que se escucha en el fondo del océano",
+    "La carretera donde los GPS dejan de funcionar",
+    "El experimento que salió terriblemente mal",
+    "El mensaje cifrado que nadie ha podido descifrar",
+    "La estación de metro que está sellada desde 1940",
+    "Lo que hay debajo de la ciudad más antigua del mundo",
+    "El espejo que no muestra tu reflejo correctamente",
+    "La última transmisión del avión que nunca encontraron",
+    "El bosque donde las brújulas giran solas",
+    "La niña que predijo 3 desastres antes de desaparecer",
+    "El edificio abandonado que aparece en las pesadillas de todos",
+    "La frecuencia de radio que no debería existir",
+    "El lago donde todo lo que entra desaparece",
+    "Las huellas que encontraron en un lugar imposible",
+    "El sótano que los nuevos dueños no sabían que existía",
+    "La fotografía que muestra algo que no estaba ahí",
+    "El ascensor que va a un piso que no existe",
+    "Los 5 lugares más embrujados que puedes visitar hoy",
   ],
   curiosidades: [
     "Tu teléfono tiene más bacterias que un inodoro",
@@ -105,6 +145,26 @@ export const VIRAL_IDEAS = {
     "El lugar más silencioso del mundo que te vuelve loco",
     "Por qué los gatos siempre caen de pie",
     "El número que está prohibido en Japón",
+    "El material más caro del universo",
+    "Por qué no hay serpientes en Irlanda",
+    "Un día en Venus es más largo que un año en Venus",
+    "El hueso que no tienes al nacer pero aparece después",
+    "La isla hecha completamente de basura",
+    "Por qué las palomitas explotan",
+    "El animal que puede sobrevivir en el espacio",
+    "La planta que puede contar hasta 5",
+    "Por qué el cielo es azul de día y rojo al atardecer",
+    "El sonido más fuerte jamás registrado en la Tierra",
+    "El país que tiene más pirámides que Egipto",
+    "Tu cuerpo produce suficiente calor para hervir agua",
+    "La ballena que canta en una frecuencia única",
+    "Por qué las cebras tienen rayas",
+    "El río que hierve en la selva amazónica",
+    "La bacteria que come plástico",
+    "Por qué los diamantes no son realmente escasos",
+    "El ser vivo más antiguo del planeta",
+    "La ciudad que fue construida dentro de una cueva",
+    "Los 5 datos más locos sobre el cuerpo humano",
   ],
   narracion: [
     "El taxista que me llevó al lugar equivocado a propósito",
@@ -117,6 +177,26 @@ export const VIRAL_IDEAS = {
     "Lo que el pescador sacó del lago aquella mañana",
     "La habitación 313 que ningún huésped quiere usar",
     "El tren que llegó con un pasajero de más",
+    "El paquete que llegó sin remitente y lo que contenía",
+    "La cámara de seguridad captó algo imposible a las 2 AM",
+    "El mapa que dibujó un niño y resultó ser real",
+    "La voz que se escuchó en la grabación y no era de nadie",
+    "El mensaje que encontraron en una botella 100 años después",
+    "Lo que el minero descubrió a 500 metros bajo tierra",
+    "La puerta del sótano que nadie quería abrir",
+    "El reloj que se detuvo exactamente a la hora del accidente",
+    "La fotografía de familia con alguien que nadie reconoce",
+    "El diario del explorador que nunca regresó",
+    "La canción que suena en un pueblo a medianoche",
+    "El barco que encontraron navegando sin tripulación",
+    "La confesión del anciano que guardó un secreto 60 años",
+    "El mural que apareció en la pared sin que nadie lo pintara",
+    "La coordenada que el GPS insiste en mostrarte",
+    "Lo que encontraron al demoler la escuela más antigua",
+    "El número de teléfono que te llama pero no existe",
+    "La mudanza que reveló un cuarto secreto",
+    "El piloto que aterrizó en un aeropuerto abandonado",
+    "La grabación de voz que nadie recuerda haber hecho",
   ],
   primera_persona: [
     "Desperté y mi reflejo no me estaba mirando",
@@ -129,6 +209,26 @@ export const VIRAL_IDEAS = {
     "Alguien me dejó una nota que decía: no abras la puerta",
     "Descubrí que mi mejor amigo tenía un secreto oscuro",
     "La cámara de seguridad de mi casa grabó algo imposible",
+    "Mi GPS me llevó a un lugar que no debería existir",
+    "Encontré mi nombre tallado en un árbol de 200 años",
+    "Desperté con un moretón que tiene forma de mano",
+    "Mi perro empezó a ladrarle a una esquina vacía cada noche",
+    "Recibí una carta de alguien que murió hace 10 años",
+    "Vi mi foto en un periódico de 1950",
+    "Mi uber me llevó a la dirección equivocada y lo que vi",
+    "Encontré una puerta detrás de mi clóset que no estaba antes",
+    "Mi teléfono nuevo ya tenía fotos mías adentro",
+    "Desperté en un hotel que cerró hace 20 años",
+    "Me respondió un correo que yo nunca envié",
+    "Escuché mi nombre en una grabación de 1970",
+    "Me mudé y el vecino me dijo: aquí ya viviste antes",
+    "Vi a alguien idéntico a mí en el supermercado",
+    "Encontré un video mío que yo nunca grabé",
+    "Mi abuelo me dejó un cofre con una advertencia",
+    "La alarma de mi casa se activa sola a las 3 AM",
+    "Descargué una app que sabía cosas sobre mi futuro",
+    "Desperté hablando un idioma que nunca estudié",
+    "Encontré un mapa en mi ático que marca mi casa",
   ],
   tercera_persona: [
     "María nunca debió abrir esa puerta",
@@ -141,6 +241,26 @@ export const VIRAL_IDEAS = {
     "El buzo encontró algo en el fondo del lago",
     "La maestra se dio cuenta de que uno de sus alumnos no era real",
     "El vigilante nocturno escuchó pasos en el piso de arriba",
+    "El cartero dejó de entregar correo en esa casa y nadie sabe por qué",
+    "La enfermera vio algo en la habitación 404 que no puede olvidar",
+    "El arqueólogo encontró un objeto que no pertenece a ninguna época",
+    "Los bomberos entraron al edificio y lo que vieron los hizo retroceder",
+    "La psicóloga descubrió que todos sus pacientes tenían el mismo sueño",
+    "El taxista llevó a un pasajero que ya estaba muerto",
+    "La familia descubrió que su nueva casa tenía un inquilino invisible",
+    "El programador encontró un código que él no escribió en su proyecto",
+    "La fotógrafa reveló una imagen que mostraba el futuro",
+    "El trabajador del turno nocturno tiene una regla: no mirar la cámara 7",
+    "El veterinario recibió un animal que no existe en ningún registro",
+    "La agente de bienes raíces nunca muestra el segundo piso",
+    "El historiador encontró un documento que reescribe la historia",
+    "Los mineros escucharon voces a 1000 metros de profundidad",
+    "La mesera del turno de noche atiende a un cliente que siempre desaparece",
+    "El astrónomo detectó una señal que venía de la Tierra",
+    "La bibliotecaria encontró un libro que se escribe solo",
+    "El conductor del último metro vio a alguien en las vías",
+    "La niña dibujó algo que su familia nunca le enseñó",
+    "El guardaparques encontró un campamento sin dueño",
   ],
   documental: [
     "La verdadera historia detrás del Área 51",
@@ -153,6 +273,26 @@ export const VIRAL_IDEAS = {
     "La historia del hombre que vivió solo en una isla 29 años",
     "Los secretos que guardan los océanos más profundos",
     "El misterio de las señales de radio del espacio",
+    "Las 5 civilizaciones perdidas que nadie puede explicar",
+    "Cómo se fabrica el dinero y por qué no puedes copiarlo",
+    "La droga más cara del mundo y quién la consume",
+    "El bunker secreto donde sobrevivirían los presidentes",
+    "Cómo funciona una prisión de máxima seguridad por dentro",
+    "La historia de la persona más aislada del planeta",
+    "El fraude más grande de la historia de Wall Street",
+    "Cómo los carteles lavan dinero en negocios legales",
+    "La tribu que nunca ha tenido contacto con la civilización",
+    "Los 5 accidentes nucleares que el gobierno intentó ocultar",
+    "Cómo la CIA usó LSD en experimentos con civiles",
+    "La fábrica more secreta de Apple y cómo opera",
+    "El misterio del vuelo MH370 y las teorías más creíbles",
+    "Cómo sobrevivir los primeros 72 horas de un apocalipsis",
+    "La verdad sobre las pirámides que los libros no cuentan",
+    "El volcán que podría acabar con la civilización",
+    "Cómo se entrena un astronauta de la NASA",
+    "Las 3 pandemias más mortales y cómo empezaron",
+    "El lugar más radioactivo del planeta y quién vive ahí",
+    "La historia del espía que engañó a todos durante 30 años",
   ],
   motivational: [
     "Fue rechazado 300 veces, hoy vale billones",
@@ -165,6 +305,26 @@ export const VIRAL_IDEAS = {
     "Lo que aprendí perdiendo todo a los 25",
     "Por qué deberías fallar más seguido",
     "El discurso de 2 minutos que cambió millones de vidas",
+    "La mentalidad que te mantiene pobre sin saberlo",
+    "Cómo ganar más dinero sin trabajar más horas",
+    "El hábito nocturno que cambió su vida en 30 días",
+    "Por qué la disciplina vence al talento siempre",
+    "Los 5 arrepentimientos más comunes antes de morir",
+    "El millonario que empezó vendiendo chicles en la calle",
+    "Cómo programar tu mente para el éxito en 21 días",
+    "La diferencia entre mentalidad de víctima y de ganador",
+    "El ejercicio mental que hacen todos los CEO",
+    "Por qué tus amigos determinan tu ingreso",
+    "La regla de las 5 horas que usan los más exitosos",
+    "Cómo convertir tus excusas en resultados",
+    "El día que Jeff Bezos casi pierde todo",
+    "La routina matutina que generó un imperio",
+    "Por qué el miedo te está robando millones",
+    "Lo que la universidad no te enseña sobre el dinero",
+    "Tenía 50 años y construyó un imperio desde cero",
+    "Las 3 inversiones que te harán rico antes de los 40",
+    "El consejo de 8 palabras que cambió su destino",
+    "Cómo dejar de procrastinar en 24 horas",
   ],
   conspiración: [
     "La teoría del universo simulado explicada en 60 segundos",
@@ -177,15 +337,53 @@ export const VIRAL_IDEAS = {
     "La teoría de que vivimos en un multiverso",
     "¿Qué oculta realmente el Vaticano en sus archivos?",
     "El misterio de los números que nadie puede descifrar",
+    "La civilización que vivió antes que los humanos",
+    "Por qué los teléfonos escuchan tus conversaciones",
+    "El satélite misterioso que orbita la Tierra desde antes del espacio",
+    "Las bases subterráneas que el gobierno no quiere que veas",
+    "La verdad sobre los chemtrails explicada con ciencia",
+    "El código secreto escondido en los billetes de dólar",
+    "Por qué Tesla murió pobre y sus inventos desaparecieron",
+    "La puerta dimensional que encontraron en la Antártida",
+    "Los 5 inventos que desaparecieron misteriosamente",
+    "El monolito que aparece y desaparece en el desierto",
+    "La reunión secreta donde 13 familias controlan el mundo",
+    "La IA que fue desconectada por decir demasiado",
+    "El tiempo no existe — la teoría que asusta a los científicos",
+    "Las pirámides fueron construidas con una tecnología perdida",
+    "El agujero más profundo jamás excavado y lo que encontraron",
+    "La frecuencia 432 Hz que el gobierno no quiere que escuches",
+    "El botón rojo que puede acabar con internet",
+    "Los animales extintos que podrían seguir vivos",
+    "El origen real de internet que nadie cuenta",
+    "La profecía de Einstein que se está cumpliendo",
   ],
 };
 
+// Track used ideas per category to avoid repeats
+const usedIdeas = {};
+
 /**
- * Get a random idea for a specific template
+ * Get a random idea for a specific template — never repeats until exhausted
  */
 export function getRandomIdea(template = "general") {
   const ideas = VIRAL_IDEAS[template] || VIRAL_IDEAS.general;
-  return ideas[Math.floor(Math.random() * ideas.length)];
+
+  // Initialize or reset if all ideas have been used
+  if (!usedIdeas[template] || usedIdeas[template].length >= ideas.length) {
+    usedIdeas[template] = [];
+  }
+
+  // Filter out already used ideas
+  const available = ideas.filter((_, i) => !usedIdeas[template].includes(i));
+  const randomIdx = Math.floor(Math.random() * available.length);
+  const idea = available[randomIdx];
+
+  // Track which index was used
+  const originalIdx = ideas.indexOf(idea);
+  usedIdeas[template].push(originalIdx);
+
+  return idea;
 }
 
 /**
@@ -195,9 +393,8 @@ export function getRandomIdeaAny() {
   const allTemplates = Object.keys(VIRAL_IDEAS);
   const randomTemplate =
     allTemplates[Math.floor(Math.random() * allTemplates.length)];
-  const ideas = VIRAL_IDEAS[randomTemplate];
   return {
-    idea: ideas[Math.floor(Math.random() * ideas.length)],
+    idea: getRandomIdea(randomTemplate),
     template: randomTemplate,
   };
 }

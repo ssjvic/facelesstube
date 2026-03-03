@@ -533,157 +533,166 @@ export async function createVideoWithLibrary(
         `🎬 Video: ${totalDurationSec}s total, ${numScenes} scenes, ${(sceneDuration / 1000).toFixed(1)}s each`,
       );
 
-      for (let sceneIdx = 0; sceneIdx < numScenes; sceneIdx++) {
-        const sceneText = scenes[sceneIdx % scenes.length] || "";
-        onProgress?.(`🎬 Escena ${sceneIdx + 1}/${numScenes}...`);
-
-        for (let frame = 0; frame < framesPerScene; frame++) {
-          const time = (sceneIdx * framesPerScene + frame) / fps;
-
-          // ============ FONDO ============
-          if (bgPhotos.length > 0) {
-            // PHOTO BACKGROUND with Ken Burns effect
-            const photo = bgPhotos[sceneIdx % bgPhotos.length];
-            const progress = frame / framesPerScene;
-
-            // Ken Burns: different pan direction per scene
-            const directions = [
-              { startZoom: 1.0, endZoom: 1.15, panX: -0.05, panY: -0.02 }, // Zoom in, pan left-up
-              { startZoom: 1.15, endZoom: 1.0, panX: 0.05, panY: 0.02 }, // Zoom out, pan right-down
-              { startZoom: 1.0, endZoom: 1.12, panX: 0.04, panY: -0.03 }, // Zoom in, pan right-up
-              { startZoom: 1.12, endZoom: 1.0, panX: -0.03, panY: 0.03 }, // Zoom out, pan left-down
-              { startZoom: 1.0, endZoom: 1.18, panX: 0.0, panY: -0.04 }, // Zoom in, pan up
-              { startZoom: 1.18, endZoom: 1.0, panX: 0.0, panY: 0.04 }, // Zoom out, pan down
-            ];
-            const dir = directions[sceneIdx % directions.length];
-
-            // Smooth easing
-            const t = progress * progress * (3 - 2 * progress); // smoothstep
-            const zoom = dir.startZoom + (dir.endZoom - dir.startZoom) * t;
-            const offsetX = dir.panX * t * canvas.width;
-            const offsetY = dir.panY * t * canvas.height;
-
-            // Scale image to cover canvas
-            const imgRatio = photo.naturalWidth / photo.naturalHeight;
-            const canvasRatio = canvas.width / canvas.height;
-            let drawW, drawH;
-            if (imgRatio < canvasRatio) {
-              drawW = canvas.width * zoom;
-              drawH = drawW / imgRatio;
-            } else {
-              drawH = canvas.height * zoom;
-              drawW = drawH * imgRatio;
+      // Render all scenes — resilient to tab switching
+      // (setTimeout/requestAnimationFrame get throttled when tab is hidden)
+      const renderAllScenes = () =>
+        new Promise((resolveRender) => {
+          let sceneIdx = 0;
+          let frame = 0;
+          const renderFrame = () => {
+            if (sceneIdx >= numScenes) {
+              resolveRender();
+              return;
             }
-            const drawX = (canvas.width - drawW) / 2 + offsetX;
-            const drawY = (canvas.height - drawH) / 2 + offsetY;
+            const sceneText = scenes[sceneIdx % scenes.length] || "";
+            if (frame === 0) {
+              onProgress?.(`🎬 Escena ${sceneIdx + 1}/${numScenes}...`);
+            }
+            const time = (sceneIdx * framesPerScene + frame) / fps;
 
-            ctx.drawImage(photo, drawX, drawY, drawW, drawH);
+            // ============ FONDO ============
+            if (bgPhotos.length > 0) {
+              const photo = bgPhotos[sceneIdx % bgPhotos.length];
+              const progress = frame / framesPerScene;
+              const directions = [
+                { startZoom: 1.0, endZoom: 1.15, panX: -0.05, panY: -0.02 },
+                { startZoom: 1.15, endZoom: 1.0, panX: 0.05, panY: 0.02 },
+                { startZoom: 1.0, endZoom: 1.12, panX: 0.04, panY: -0.03 },
+                { startZoom: 1.12, endZoom: 1.0, panX: -0.03, panY: 0.03 },
+                { startZoom: 1.0, endZoom: 1.18, panX: 0.0, panY: -0.04 },
+                { startZoom: 1.18, endZoom: 1.0, panX: 0.0, panY: 0.04 },
+              ];
+              const dir = directions[sceneIdx % directions.length];
+              const t = progress * progress * (3 - 2 * progress);
+              const zoom = dir.startZoom + (dir.endZoom - dir.startZoom) * t;
+              const offsetX = dir.panX * t * canvas.width;
+              const offsetY = dir.panY * t * canvas.height;
+              const imgRatio = photo.naturalWidth / photo.naturalHeight;
+              const canvasRatio = canvas.width / canvas.height;
+              let drawW, drawH;
+              if (imgRatio < canvasRatio) {
+                drawW = canvas.width * zoom;
+                drawH = drawW / imgRatio;
+              } else {
+                drawH = canvas.height * zoom;
+                drawW = drawH * imgRatio;
+              }
+              const drawX = (canvas.width - drawW) / 2 + offsetX;
+              const drawY = (canvas.height - drawH) / 2 + offsetY;
+              ctx.drawImage(photo, drawX, drawY, drawW, drawH);
+              ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            } else if (bgVideo && !useGradientFallback) {
+              const scale = Math.max(
+                canvas.width / bgVideo.videoWidth,
+                canvas.height / bgVideo.videoHeight,
+              );
+              const w = bgVideo.videoWidth * scale;
+              const h = bgVideo.videoHeight * scale;
+              const x = (canvas.width - w) / 2;
+              const y = (canvas.height - h) / 2;
+              const zoom = 1 + (frame / framesPerScene) * 0.03;
+              ctx.save();
+              ctx.translate(canvas.width / 2, canvas.height / 2);
+              ctx.scale(zoom, zoom);
+              ctx.translate(-canvas.width / 2, -canvas.height / 2);
+              ctx.drawImage(bgVideo, x, y, w, h);
+              ctx.restore();
+              ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              if (bgVideo.currentTime >= bgVideo.duration - 0.5) {
+                bgVideo.currentTime = 0;
+              }
+            } else {
+              const palette =
+                gradientPalettes[sceneIdx % gradientPalettes.length];
+              const gradProgress = frame / framesPerScene;
+              const gradY1 = Math.sin(gradProgress * Math.PI) * 200;
+              const grad = ctx.createLinearGradient(
+                0,
+                gradY1,
+                canvas.width,
+                canvas.height - gradY1,
+              );
+              grad.addColorStop(0, palette[0]);
+              grad.addColorStop(0.5, palette[1]);
+              grad.addColorStop(1, palette[2]);
+              ctx.fillStyle = grad;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              for (let p = 0; p < 15; p++) {
+                const px = (p * 137 + time * 30) % canvas.width;
+                const py =
+                  (p * 97 + time * 20 + Math.sin(p + time) * 50) %
+                  canvas.height;
+                const pSize = 2 + Math.sin(p * 0.5 + time) * 1.5;
+                const pAlpha = 0.1 + Math.sin(p * 0.3 + time * 2) * 0.08;
+                ctx.beginPath();
+                ctx.arc(px, py, pSize, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${pAlpha})`;
+                ctx.fill();
+              }
+              const vignette = ctx.createRadialGradient(
+                canvas.width / 2,
+                canvas.height / 2,
+                canvas.height * 0.3,
+                canvas.width / 2,
+                canvas.height / 2,
+                canvas.height * 0.8,
+              );
+              vignette.addColorStop(0, "rgba(0,0,0,0)");
+              vignette.addColorStop(1, "rgba(0,0,0,0.5)");
+              ctx.fillStyle = vignette;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
 
-            // Dark overlay for text readability
-            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          } else if (bgVideo && !useGradientFallback) {
-            // Dibujar frame actual del video
-            const scale = Math.max(
-              canvas.width / bgVideo.videoWidth,
-              canvas.height / bgVideo.videoHeight,
-            );
-            const w = bgVideo.videoWidth * scale;
-            const h = bgVideo.videoHeight * scale;
-            const x = (canvas.width - w) / 2;
-            const y = (canvas.height - h) / 2;
+            // ============ SUBTÍTULOS ESTILO VIRAL ============
+            drawViralSubtitles(ctx, canvas, sceneText, time);
 
-            // Efecto Ken Burns suave
-            const zoom = 1 + (frame / framesPerScene) * 0.03;
+            // ============ WATERMARK ============
             ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.scale(zoom, zoom);
-            ctx.translate(-canvas.width / 2, -canvas.height / 2);
-            ctx.drawImage(bgVideo, x, y, w, h);
+            ctx.font = "bold 48px Inter, Segoe UI, system-ui, sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+            ctx.fillText(
+              "facelesstube.app",
+              canvas.width / 2,
+              canvas.height / 2,
+            );
             ctx.restore();
 
-            // Overlay oscuro para legibilidad
-            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Barra de progreso
+            const progress =
+              (sceneIdx * framesPerScene + frame) /
+              (numScenes * framesPerScene);
+            ctx.fillStyle = "rgba(168, 85, 247, 0.9)";
+            ctx.fillRect(0, 0, canvas.width * progress, 4);
 
-            // Loop del video si termina
-            if (bgVideo.currentTime >= bgVideo.duration - 0.5) {
-              bgVideo.currentTime = 0;
+            // Advance frame
+            frame++;
+            if (frame >= framesPerScene) {
+              frame = 0;
+              sceneIdx++;
             }
-          } else {
-            // Animated gradient fallback
-            const palette =
-              gradientPalettes[sceneIdx % gradientPalettes.length];
-            const gradProgress = frame / framesPerScene;
+          };
 
-            // Shifting gradient
-            const gradY1 = Math.sin(gradProgress * Math.PI) * 200;
-            const grad = ctx.createLinearGradient(
-              0,
-              gradY1,
-              canvas.width,
-              canvas.height - gradY1,
-            );
-            grad.addColorStop(0, palette[0]);
-            grad.addColorStop(0.5, palette[1]);
-            grad.addColorStop(1, palette[2]);
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Floating particles effect
-            for (let p = 0; p < 15; p++) {
-              const px = (p * 137 + time * 30) % canvas.width;
-              const py =
-                (p * 97 + time * 20 + Math.sin(p + time) * 50) % canvas.height;
-              const pSize = 2 + Math.sin(p * 0.5 + time) * 1.5;
-              const pAlpha = 0.1 + Math.sin(p * 0.3 + time * 2) * 0.08;
-              ctx.beginPath();
-              ctx.arc(px, py, pSize, 0, Math.PI * 2);
-              ctx.fillStyle = `rgba(255, 255, 255, ${pAlpha})`;
-              ctx.fill();
+          // Use setInterval — it keeps running even when tab is hidden
+          const intervalMs = 1000 / fps;
+          const intervalId = setInterval(() => {
+            if (sceneIdx >= numScenes) {
+              clearInterval(intervalId);
+              resolveRender();
+              return;
             }
+            renderFrame();
+          }, intervalMs);
+        });
 
-            // Subtle vignette
-            const vignette = ctx.createRadialGradient(
-              canvas.width / 2,
-              canvas.height / 2,
-              canvas.height * 0.3,
-              canvas.width / 2,
-              canvas.height / 2,
-              canvas.height * 0.8,
-            );
-            vignette.addColorStop(0, "rgba(0,0,0,0)");
-            vignette.addColorStop(1, "rgba(0,0,0,0.5)");
-            ctx.fillStyle = vignette;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-          }
-
-          // ============ SUBTÍTULOS ESTILO VIRAL ============
-          // (Usar la misma lógica de subtítulos mejorada)
-          drawViralSubtitles(ctx, canvas, sceneText, time);
-
-          // ============ WATERMARK (branding — visible for free users) ============
-          ctx.save();
-          ctx.font = "bold 48px Inter, Segoe UI, system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetX = 2;
-          ctx.shadowOffsetY = 2;
-          ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-          ctx.fillText("facelesstube.app", canvas.width / 2, canvas.height / 2);
-          ctx.restore();
-
-          // Barra de progreso
-          const progress =
-            (sceneIdx * framesPerScene + frame) / (numScenes * framesPerScene);
-          ctx.fillStyle = "rgba(168, 85, 247, 0.9)";
-          ctx.fillRect(0, 0, canvas.width * progress, 4);
-
-          await new Promise((r) => setTimeout(r, 1000 / fps));
-        }
-      }
+      await renderAllScenes();
 
       bgVideo?.pause();
       await new Promise((r) => setTimeout(r, 300));
