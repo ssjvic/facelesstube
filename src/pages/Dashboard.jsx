@@ -113,6 +113,9 @@ export default function Dashboard() {
   // Hashtag copy state
   const [hashtagsCopied, setHashtagsCopied] = useState(false);
 
+  // Custom hashtags input
+  const [customHashtags, setCustomHashtags] = useState("");
+
   const handleRandomIdea = () => {
     const randomIdea = getRandomIdea(selectedTemplate);
     setIdea(randomIdea);
@@ -402,78 +405,49 @@ export default function Dashboard() {
         : typeof rawTags === "string"
           ? rawTags.split(",").map((t) => t.trim())
           : [];
-      const rawHashtags = scriptData.hashtags || [];
-      let hashtags = Array.isArray(rawHashtags) ? rawHashtags : [];
-
-      // If AI returned no hashtags, generate topic-specific ones from the video idea
-      if (hashtags.length === 0) {
-        const stopWords = new Set([
-          "the",
-          "and",
-          "for",
-          "are",
-          "but",
-          "not",
-          "you",
-          "all",
-          "can",
-          "had",
-          "her",
-          "was",
-          "one",
-          "our",
-          "out",
-          "has",
-          "his",
-          "how",
-          "its",
-          "may",
-          "new",
-          "now",
-          "old",
-          "see",
-          "way",
-          "who",
-          "did",
-          "get",
-          "let",
-          "say",
-          "she",
-          "too",
-          "use",
-          "que",
-          "una",
-          "por",
-          "con",
-          "los",
-          "las",
-          "del",
-          "para",
-          "como",
-          "mas",
-          "todo",
-          "esta",
-          "eso",
-          "ese",
-          "son",
-          "hay",
-          "ser",
-          "muy",
-          "sin",
-          "sobre",
-          "tiene",
-          "desde",
-        ]);
-        const ideaWords = idea
-          .toLowerCase()
-          .replace(/[^a-záéíóúñü\s]/gi, "")
-          .split(/\s+/)
-          .filter((w) => w.length >= 3 && !stopWords.has(w));
-        const uniqueWords = [...new Set(ideaWords)].slice(0, 5);
-        hashtags = uniqueWords.map((w) => `#${w}`);
-        // Always include app hashtag
-        hashtags.push("#facelesstube", "#youtube", "#viral");
-        console.log("📌 Generated fallback hashtags from idea:", hashtags);
+      // Use custom hashtags if provided, otherwise try AI-generated, then fallback
+      let hashtags;
+      if (customHashtags.trim()) {
+        hashtags = customHashtags
+          .split(/[,\s]+/)
+          .map((h) => h.trim())
+          .filter((h) => h.length > 0)
+          .map((h) => (h.startsWith("#") ? h : `#${h}`));
+        console.log("📌 Using custom hashtags:", hashtags);
+      } else {
+        const rawHashtags = scriptData.hashtags || [];
+        hashtags = Array.isArray(rawHashtags) ? rawHashtags : [];
+        if (hashtags.length === 0) {
+          // Smart fallback: generate relevant hashtags from template + idea
+          const templateHashtags = {
+            general: ["#datos", "#curiosidades", "#sabíasque"],
+            horror: ["#terror", "#miedo", "#creepypasta", "#historia"],
+            curiosidades: ["#curiosidades", "#datos", "#increíble"],
+            narracion: ["#narración", "#historia", "#relato"],
+            primera_persona: ["#historia", "#experiencia", "#realidad"],
+            tercera_persona: ["#relato", "#ficción", "#historia"],
+            documental: ["#documental", "#investigación", "#verdad"],
+            motivational: ["#motivación", "#éxito", "#emprendimiento"],
+            conspiración: ["#conspiración", "#misterio", "#oculto"],
+          };
+          const base = templateHashtags[selectedTemplate] || ["#viral"];
+          const ideaWords = idea
+            .toLowerCase()
+            .replace(/[^a-záéíóúñü\s]/gi, "")
+            .split(/\s+/)
+            .filter((w) => w.length >= 4)
+            .slice(0, 3);
+          hashtags = [
+            ...base,
+            ...ideaWords.map((w) => `#${w}`),
+            "#facelesstube",
+            "#viral",
+            "#shorts",
+          ];
+          // Remove duplicates
+          hashtags = [...new Set(hashtags)];
+          console.log("📌 Generated smart hashtags:", hashtags);
+        }
       }
       const title = String(scriptData.title || scriptData.titulo || idea);
       const description = String(
@@ -1015,6 +989,39 @@ export default function Dashboard() {
                 className="input-glass min-h-[80px] md:min-h-[120px] resize-none text-sm md:text-base"
                 disabled={!canGenerate}
               />
+            </div>
+
+            {/* Custom Hashtags */}
+            <div className="mb-4 md:mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium">
+                  🏷️ Hashtags personalizados
+                </label>
+                <span className="text-xs text-white/40">Opcional</span>
+              </div>
+              <input
+                type="text"
+                value={customHashtags}
+                onChange={(e) => setCustomHashtags(e.target.value)}
+                placeholder="#viral #shorts #youtube (separados por espacio o coma)"
+                className="input-glass text-sm w-full"
+                disabled={!canGenerate}
+              />
+              {customHashtags.trim() && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {customHashtags
+                    .split(/[,\s]+/)
+                    .filter((h) => h.trim().length > 0)
+                    .map((h, i) => (
+                      <span
+                        key={i}
+                        className="px-2 py-1 rounded-full bg-neon-cyan/10 border border-neon-cyan/20 text-xs text-neon-cyan"
+                      >
+                        {h.startsWith("#") ? h : `#${h}`}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
 
             {/* Video Language */}
