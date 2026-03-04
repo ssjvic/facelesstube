@@ -377,7 +377,7 @@ export const useAuthStore = create(
             const { data, error } = await supabase.auth.signInWithOAuth({
               provider: "google",
               options: {
-                // HashRouter uses /#/ for routes, so we redirect to root.
+                // BrowserRouter uses clean /routes, redirect to root.
                 // The onAuthStateChange listener + checkAuth will handle
                 // setting user state and Auth.jsx's useEffect redirects to /app.
                 redirectTo: window.location.origin,

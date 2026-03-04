@@ -1,0 +1,3 @@
+[33m092be9b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: use absolute base path for Vercel SPA routing
+[33m58af994[m fix: use routes config for SPA catch-all
+[33mc58d8e5[m feat: stripe customer portal + vercel routing fix + price ID sync

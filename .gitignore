@@ -31,3 +31,4 @@ ios/App/App/GoogleService-Info.plist
 *.keystore
 video muestra.mp4
 cuenta antigravity/
+.env*.local
