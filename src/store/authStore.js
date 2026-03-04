@@ -90,6 +90,7 @@ function buildUserFromSession(sessionUser, profile = null) {
     credits: profile?.credits ?? 100,
     videosThisMonth: profile?.videos_this_month || 0,
     youtubeConnected: profile?.youtube_connected || false,
+    stripeCustomerId: profile?.stripe_customer_id || null,
     createdAt: profile?.created_at || new Date().toISOString(),
   };
 }

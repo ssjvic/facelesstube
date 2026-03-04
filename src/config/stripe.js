@@ -83,20 +83,33 @@ export const createCheckoutSession = async (
   }
 };
 
-// Create customer portal session
-export const createPortalSession = async (customerId) => {
-  // In production, call your backend:
-  // const response = await fetch('/api/create-portal-session', {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ customerId })
-  // })
-  // return response.json()
+// Create customer portal session — redirects user to Stripe's hosted portal
+// where they can cancel, upgrade, or view invoices
+export const createPortalSession = async (userId) => {
+  const apiUrl =
+    import.meta.env.VITE_API_URL || "https://facelesstube-backend.onrender.com";
 
-  return {
-    success: false,
-    error: "Customer portal requires backend configuration",
-  };
+  try {
+    const response = await fetch(`${apiUrl}/api/create-portal-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || `Error ${response.status}`);
+    }
+
+    const { url } = await response.json();
+    if (url) {
+      window.location.href = url; // Redirect to Stripe Customer Portal
+    }
+    return { success: true };
+  } catch (e) {
+    console.error("Portal session error:", e);
+    return { success: false, error: e.message };
+  }
 };
 
 // Price helpers

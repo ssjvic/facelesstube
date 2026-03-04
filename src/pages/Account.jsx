@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortalSession } from "../config/stripe";
 import {
   User,
   Coins,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronRight,
+  ExternalLink,
   History,
   Zap,
   Gift,
@@ -65,6 +67,23 @@ export default function Account() {
   const [isConnectingYouTube, setIsConnectingYouTube] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
+  // Handle manage subscription (Stripe Customer Portal)
+  const handleManageSubscription = async () => {
+    if (!user?.id) return;
+    setIsManagingSubscription(true);
+    try {
+      const result = await createPortalSession(user.id);
+      if (!result.success && result.error) {
+        toast.error(result.error);
+      }
+    } catch (e) {
+      toast.error("No se pudo abrir el portal de suscripción.");
+    } finally {
+      setIsManagingSubscription(false);
+    }
+  };
 
   // Handle profile name update
   const handleSaveName = async () => {
@@ -362,13 +381,31 @@ export default function Account() {
                 {tierInfo.name}
               </span>
             </div>
-            <a
-              href="/app/premium"
-              className="flex items-center gap-1 text-neon-cyan hover:underline text-sm"
-            >
-              {getText("changePlan")}
-              <ChevronRight size={16} />
-            </a>
+            <div className="flex items-center gap-3">
+              {user?.tier !== "free" && (
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={isManagingSubscription}
+                  className="flex items-center gap-1 text-neon-purple hover:underline text-sm disabled:opacity-50"
+                >
+                  {isManagingSubscription ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <ExternalLink size={14} />
+                  )}
+                  {isManagingSubscription
+                    ? "Abriendo..."
+                    : "Gestionar Suscripción"}
+                </button>
+              )}
+              <a
+                href="/app/premium"
+                className="flex items-center gap-1 text-neon-cyan hover:underline text-sm"
+              >
+                {getText("changePlan")}
+                <ChevronRight size={16} />
+              </a>
+            </div>
           </div>
 
           {/* Usage bar */}
