@@ -131,9 +131,10 @@ export default function Premium() {
     loadProducts();
   }, []);
 
+  const isPlayStoreBuild = import.meta.env.VITE_BILLING_MODE === "playstore";
+
   const handleUpgrade = async (tier) => {
     if (tier.id === "free" || tier.id === user?.tier) return;
-    if (!tier.priceId) return;
 
     const { toast } = await import("../store/toastStore");
 
@@ -144,17 +145,47 @@ export default function Premium() {
 
     setIsLoading(tier.id);
     try {
-      const result = await createCheckoutSession(
-        tier.priceId,
-        user.id,
-        user.email,
-        true, // apply Early Bird coupon
-      );
+      if (isPlayStoreBuild) {
+        // --- Google Play Billing ---
+        const { purchaseSubscription, TIER_PRODUCTS } =
+          await import("../config/playBilling");
+        const productId =
+          TIER_PRODUCTS[tier.id]?.[billingCycle] ||
+          tier.id + "_" + billingCycle;
+        const result = await purchaseSubscription(productId);
 
-      if (!result.success && result.error) {
-        toast.error(`Error al iniciar el pago: ${result.error}`);
+        if (result.success) {
+          toast.success("¡Suscripción activada exitosamente!");
+          // Backend should verify via Google Play Developer API and update user tier
+          const apiUrl =
+            import.meta.env.VITE_API_URL ||
+            "https://facelesstube-backend.onrender.com";
+          await fetch(`${apiUrl}/api/verify-play-purchase`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: user.id,
+              purchase_token: result.purchaseToken,
+              product_id: result.productId,
+            }),
+          });
+        } else {
+          toast.error(result.error || "Compra cancelada");
+        }
+      } else {
+        // --- Stripe (web) ---
+        if (!tier.priceId) return;
+        const result = await createCheckoutSession(
+          tier.priceId,
+          user.id,
+          user.email,
+          true, // apply Early Bird coupon
+        );
+        if (!result.success && result.error) {
+          toast.error(`Error al iniciar el pago: ${result.error}`);
+        }
+        // On success the page redirects to Stripe — no further action needed
       }
-      // On success the page redirects to Stripe — no further action needed
     } catch (e) {
       toast.error("No se pudo conectar con el servidor de pagos.");
     } finally {

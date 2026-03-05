@@ -1,9 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: "/", // Absolute paths for web deployment (Capacitor builds may need './')
+  base: process.env.CAPACITOR_BUILD ? "./" : "/", // Relative for Capacitor, absolute for Vercel
   server: {
     port: 5173,
     open: true,
@@ -30,4 +30,4 @@ export default defineConfig({
     // Enable source map only in dev
     sourcemap: false,
   },
-});
+}));
