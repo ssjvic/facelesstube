@@ -108,21 +108,6 @@ const tiers = [
     ],
     badge: "badge-unlimited",
   },
-  {
-    id: "test",
-    name: "Test $0.01",
-    icon: Zap,
-    price: { monthly: 0.01, annual: 0.12 },
-    priceId: STRIPE_PRICES.test.monthly,
-    features: [
-      "⚠️ Solo para pruebas",
-      "Mismo acceso que Starter",
-      "Cobro real de $0.01",
-      "Tarjeta: 4242 4242 4242 4242",
-    ],
-    badge: "badge-starter",
-    testOnly: true,
-  },
 ];
 
 export default function Premium() {

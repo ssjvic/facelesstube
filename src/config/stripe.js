@@ -16,10 +16,6 @@ export const STRIPE_PRICES = {
   pro: {
     monthly: "price_1T6fmGBOwXqiDvFMR44xMt1g", // $39/mo
   },
-  // ⚠️ Solo para pruebas — cobro real de $0.01
-  test: {
-    monthly: "price_1T6fmGBOwXqiDvFMBnKlF47a", // $0.01/mo TEST ONLY
-  },
 };
 
 // Early Bird coupon - 20% forever, max 100 redemptions
