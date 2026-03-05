@@ -135,7 +135,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-cosmic-950">
         <div className="flex flex-col items-center gap-4">
           <img
-            src="./logo.png"
+            src="/logo.png"
             alt="FacelessTube"
             className="h-16 w-auto opacity-50 animate-pulse"
           />
