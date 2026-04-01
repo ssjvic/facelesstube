@@ -14,15 +14,17 @@ async function callBackendAI(
   language,
   template = "general",
   userId = null,
+  durationSeconds = 60,
 ) {
   console.log("🖥️ Calling backend AI...", {
     template,
+    durationSeconds,
     userId: userId?.substring(0, 8),
   });
   const response = await fetch(`${API_BASE}/api/ai/generate-script`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idea, language, template, user_id: userId }),
+    body: JSON.stringify({ idea, language, template, user_id: userId, duration_seconds: durationSeconds }),
   });
 
   if (!response.ok) {
@@ -43,13 +45,14 @@ export const generateScript = async (
   language = "es",
   template = "general",
   userId = null,
+  durationSeconds = 60,
 ) => {
   if (!idea || idea.trim().length < 3) {
     throw new Error("Escribe una idea para tu video");
   }
 
   try {
-    return await callBackendAI(idea, language, template, userId);
+    return await callBackendAI(idea, language, template, userId, durationSeconds);
   } catch (error) {
     console.error("AI script error:", error);
     // Provide user-friendly error messages

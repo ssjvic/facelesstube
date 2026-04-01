@@ -358,12 +358,14 @@ export default function Dashboard() {
       startSlowProgress(8, 24, "🧠 Generando guión con IA...", 30000);
 
       let scriptData;
+      const durationSec = videoDuration * 60; // Convert minutes to seconds
       try {
         scriptData = await generateScript(
           idea,
           videoLanguage,
           selectedTemplate,
           user?.id,
+          durationSec,
         );
       } catch (firstErr) {
         // If 429 rate limit, don't retry
@@ -381,6 +383,7 @@ export default function Dashboard() {
           videoLanguage,
           selectedTemplate,
           user?.id,
+          durationSec,
         );
       }
       stopSlowProgress();
@@ -616,6 +619,7 @@ export default function Dashboard() {
         },
         bgVideoId,
         photoUrls,
+        tierInfo.watermark, // Only show watermark for free tier
       );
 
       stopSlowProgress();

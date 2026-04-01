@@ -310,6 +310,7 @@ export async function createVideoWithLibrary(
   onProgress,
   videoId,
   photoUrls = [],
+  showWatermark = true,
 ) {
   return new Promise(async (resolve, reject) => {
     try {
@@ -651,6 +652,7 @@ export async function createVideoWithLibrary(
             drawViralSubtitles(ctx, canvas, sceneText, time);
 
             // ============ WATERMARK ============
+            if (showWatermark) {
             ctx.save();
             ctx.font = "bold 48px Inter, Segoe UI, system-ui, sans-serif";
             ctx.textAlign = "center";
@@ -666,6 +668,7 @@ export async function createVideoWithLibrary(
               canvas.height / 2,
             );
             ctx.restore();
+            }
 
             // Barra de progreso
             const progress =
@@ -1158,6 +1161,7 @@ export async function createVideo(script, images, audioBlob, onProgress) {
           });
 
           // ============ WATERMARK ============
+          if (showWatermark) {
           ctx.save();
           ctx.font = "bold 96px Inter, Segoe UI, system-ui, sans-serif";
           ctx.textAlign = "center";
@@ -1173,6 +1177,7 @@ export async function createVideo(script, images, audioBlob, onProgress) {
             canvas.height - 80,
           );
           ctx.restore();
+          }
 
           // Barra de progreso
           const progress =
