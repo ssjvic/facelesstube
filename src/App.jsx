@@ -37,6 +37,23 @@ function App() {
     checkAuth();
   }, [checkAuth]);
 
+  // Check promo code expiration on every app load
+  useEffect(() => {
+    if (loading || !user) return;
+    const expiresAt = localStorage.getItem("facelesstube_promo_expires");
+    if (expiresAt && user.tier !== "free") {
+      if (new Date() > new Date(expiresAt)) {
+        console.log("⏰ Promo expired on app load, reverting to free");
+        useAuthStore.getState().updateUser({ tier: "free" });
+        localStorage.removeItem("facelesstube_promo_expires");
+        localStorage.removeItem("facelesstube_promo_code");
+        toast.info(
+          "Tu periodo de prueba ha terminado. Actualiza a premium para seguir disfrutando.",
+        );
+      }
+    }
+  }, [loading, user]);
+
   // SAFETY NET: If loading is stuck for more than 8 seconds, force it off.
   // This prevents infinite spinner/black screen if any auth path fails silently.
   useEffect(() => {

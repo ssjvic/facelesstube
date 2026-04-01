@@ -52,7 +52,27 @@ const mockTransactions = [
 // Format: 'CODE': { credits: 50, type: 'credits', message: 'Message' }
 // Or for upgrades: 'CODE': { tier: 'pro', type: 'upgrade', message: 'Message' }
 const PROMO_CODES = {
-  // Add your promo codes here
+  TESTERS1234: {
+    tier: "starter",
+    type: "upgrade",
+    durationDays: 30,
+    message:
+      "🎉 ¡Plan Starter activado por 30 días! Disfruta 30 videos/mes sin marca de agua.",
+  },
+  TESTERS5678: {
+    tier: "pro",
+    type: "upgrade",
+    durationDays: 30,
+    message:
+      "🎉 ¡Plan Creator activado por 30 días! 100 videos/mes + voces premium.",
+  },
+  SUPERTESTERS: {
+    tier: "unlimited",
+    type: "upgrade",
+    durationDays: 30,
+    message:
+      "🚀 ¡Plan Pro activado por 30 días! Videos ilimitados + todas las funciones.",
+  },
 };
 
 export default function Account() {
@@ -68,6 +88,27 @@ export default function Account() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
+  // Check if promo has expired on mount
+  useState(() => {
+    const checkPromoExpiry = async () => {
+      const expiresAt = localStorage.getItem("facelesstube_promo_expires");
+      if (expiresAt && user?.tier !== "free") {
+        const expiryDate = new Date(expiresAt);
+        if (new Date() > expiryDate) {
+          // Promo expired — revert to free
+          console.log("⏰ Promo expired, reverting to free tier");
+          await updateUser({ tier: "free" });
+          localStorage.removeItem("facelesstube_promo_expires");
+          localStorage.removeItem("facelesstube_promo_code");
+          toast.info(
+            "Tu periodo de prueba ha terminado. Actualiza a premium para seguir disfrutando.",
+          );
+        }
+      }
+    };
+    checkPromoExpiry();
+  });
 
   // Handle manage subscription (Stripe Customer Portal)
   const handleManageSubscription = async () => {
@@ -149,12 +190,30 @@ export default function Account() {
     const code = promoCode.toUpperCase().trim();
     const promo = PROMO_CODES[code];
 
+    // Check if this code was already used
+    const usedCode = localStorage.getItem("facelesstube_promo_code");
+    if (usedCode === code) {
+      toast.error("Este código ya fue canjeado.");
+      setIsRedeeming(false);
+      return;
+    }
+
     if (promo) {
       if (promo.type === "credits") {
         await addCredits(promo.credits);
         toast.success(promo.message);
       } else if (promo.type === "upgrade") {
         await updateUser({ tier: promo.tier });
+        // Store expiration if promo has a duration
+        if (promo.durationDays) {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + promo.durationDays);
+          localStorage.setItem(
+            "facelesstube_promo_expires",
+            expiresAt.toISOString(),
+          );
+          localStorage.setItem("facelesstube_promo_code", code);
+        }
         toast.success(promo.message);
       }
       setPromoCode("");

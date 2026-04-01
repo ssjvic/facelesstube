@@ -71,7 +71,7 @@ const tiers = [
     features: [
       "30 videos/mes",
       "Sin marca de agua",
-      "Hasta 10 min",
+      "Hasta 5 min",
       "Soporte email",
     ],
     badge: "badge-starter",
@@ -85,7 +85,7 @@ const tiers = [
     features: [
       "100 videos/mes",
       "Sin marca de agua",
-      "Hasta 15 min",
+      "Hasta 10 min",
       "Voces premium",
       "Soporte prioritario",
     ],
@@ -108,6 +108,21 @@ const tiers = [
     ],
     badge: "badge-unlimited",
   },
+  {
+    id: "test",
+    name: "Test",
+    icon: Zap,
+    price: { monthly: 0.01, annual: 0.01 },
+    priceId: STRIPE_PRICES.test?.monthly || null,
+    features: [
+      "Pago de prueba",
+      "Verifica tu tarjeta",
+      "Solo $0.01 USD",
+      "Sin suscripción",
+    ],
+    testOnly: true,
+    badge: "badge-free",
+  },
 ];
 
 export default function Premium() {
@@ -120,12 +135,48 @@ export default function Premium() {
   // Load Play Store products on mount
   useEffect(() => {
     const loadProducts = async () => {
-      const { isAndroid, initPlayBilling, getProducts } =
-        await import("../config/playBilling");
+      const {
+        isAndroid,
+        initPlayBilling,
+        getProducts,
+        setOnPurchaseApproved,
+        productToTier,
+      } = await import("../config/playBilling");
       if (isAndroid()) {
         await initPlayBilling();
-        const prods = await getProducts();
+        const prods = getProducts();
         setProducts(prods);
+
+        // Set up the callback for when a purchase is verified
+        setOnPurchaseApproved(async (purchaseInfo) => {
+          const { toast } = await import("../store/toastStore");
+          const tier = productToTier(purchaseInfo.productId);
+          console.log("✅ Purchase approved, updating tier to:", tier);
+
+          // Update user tier locally
+          await updateUser({ tier });
+
+          // Notify backend for server-side verification
+          try {
+            const apiUrl =
+              import.meta.env.VITE_API_URL ||
+              "https://facelesstube-backend.onrender.com";
+            await fetch(`${apiUrl}/api/verify-play-purchase`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: user?.id,
+                purchase_token: purchaseInfo.purchaseToken,
+                product_id: purchaseInfo.productId,
+              }),
+            });
+          } catch (e) {
+            console.warn("Backend verification failed (non-fatal):", e);
+          }
+
+          toast.success(`¡Plan ${tier} activado exitosamente!`);
+          setIsLoading(null);
+        });
       }
     };
     loadProducts();
@@ -155,20 +206,12 @@ export default function Premium() {
         const result = await purchaseSubscription(productId);
 
         if (result.success) {
+          if (result.pending) {
+            toast.info("Procesando compra...");
+            // The actual tier update happens in the setOnPurchaseApproved callback
+            return; // Don't clear isLoading yet
+          }
           toast.success("¡Suscripción activada exitosamente!");
-          // Backend should verify via Google Play Developer API and update user tier
-          const apiUrl =
-            import.meta.env.VITE_API_URL ||
-            "https://facelesstube-backend.onrender.com";
-          await fetch(`${apiUrl}/api/verify-play-purchase`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: user.id,
-              purchase_token: result.purchaseToken,
-              product_id: result.productId,
-            }),
-          });
         } else {
           toast.error(result.error || "Compra cancelada");
         }

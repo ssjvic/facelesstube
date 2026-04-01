@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --primary: #a14af7;
+    --neon-purple: #A855F7;
+    --electric-cyan: #06B6D4;
+}
+
+body {
+    @apply bg-background-light dark:bg-background-dark text-slate-900 dark:text-white transition-colors duration-300;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.glass-card {
+    @apply bg-white/5 dark:bg-white/[0.03] backdrop-blur-xl border border-white/10 shadow-xl;
+}
+
+.neon-glow {
+    box-shadow: 0 0 15px rgba(161, 74, 247, 0.4);
+}
+
+.cyan-glow {
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+}
+
+.glow-text {
+    text-shadow: 0 0 15px rgba(161, 74, 247, 0.5);
+}
+
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -518,10 +518,12 @@ export async function createVideoWithLibrary(
       const rawDuration = audioBuffer
         ? Math.ceil(audioBuffer.duration)
         : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.5));
-      // HARD CAP: YouTube Shorts ≤68 seconds
-      const totalDurationSec = Math.min(rawDuration, 68);
+      // Duration is determined by the TTS audio (which matches the script length).
+      // Tier-based limits are enforced at script generation time on the backend.
+      // Safety cap at 25 minutes to prevent runaway renders.
+      const totalDurationSec = Math.min(rawDuration, 1500);
       console.log(
-        `⏱️ Duration: raw=${rawDuration}s, capped=${totalDurationSec}s`,
+        `⏱️ Duration: raw=${rawDuration}s, final=${totalDurationSec}s`,
       );
       // CAP numScenes to scenes.length — never repeat text!
       const rawSceneCount = Math.max(6, Math.ceil(totalDurationSec / 5));

@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">FacelessTube</string>
+    <string name="title_activity_main">FacelessTube</string>
+    <string name="package_name">com.facelesstube.app</string>
+    <string name="custom_url_scheme">com.facelesstube.app</string>
+    <!-- Web Client ID from google-services.json (client_type: 3) for Firebase Auth -->
+    <string name="default_web_client_id">1034702874964-tvoigpg67rdhd5vmniknkluo1md3bh26.apps.googleusercontent.com</string>
+</resources>

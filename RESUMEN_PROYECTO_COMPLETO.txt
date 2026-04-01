@@ -1,0 +1,192 @@
+====================================================================
+ FACELESSTUBE — RESUMEN COMPLETO DEL PROYECTO
+ Última actualización: 2026-04-01 03:02 CST
+====================================================================
+
+╔══════════════════════════════════════════════════════════════════╗
+║  UBICACIONES PRINCIPALES                                        ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Frontend (React+Vite):                                         ║
+║    C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube       ║
+║                                                                  ║
+║  Backend (Python/FastAPI):                                       ║
+║    C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube\backend║
+║                                                                  ║
+║  URL Frontend: https://facelesstube.app (Vercel)                 ║
+║  URL Backend:  https://facelesstube-backend.onrender.com         ║
+║  Repo GitHub:  (push desde la carpeta del frontend)              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+====================================================================
+ARCHIVOS CLAVE DEL PROYECTO
+====================================================================
+
+FRONTEND (React + Vite + TailwindCSS):
+  src/pages/Dashboard.jsx       → Página principal, generación de video
+  src/pages/Premium.jsx          → Planes de pago (Free/Starter/Creator/Pro/Test)
+  src/config/stripe.js           → Configuración Stripe (Price IDs, checkout, portal)
+  src/services/videoGenerator.js → Motor de renderizado del video (canvas + MediaRecorder)
+  src/services/speechService.js  → TTS con Web Speech API
+  src/services/aiVoiceService.js → TTS con ElevenLabs
+  src/store/authStore.js         → Estado de usuario, tiers y límites
+  src/data/videoTemplates.js     → 900 ideas virales (100 por categoría)
+  .env.local                     → Variables de entorno local
+  index.html                     → Entry point
+
+BACKEND (Python FastAPI):
+  backend/main.py                → API completa (1875 líneas): scripts AI, TTS, Stripe
+  backend/.env                   → Variables de entorno del backend
+  backend/requirements.txt       → Dependencias Python
+  backend/video_renderer.py      → Renderizador server-side con FFmpeg
+  backend/render.yaml            → Config deploy Render
+
+====================================================================
+ESTADO DE STRIPE (PAGOS) — MODO LIVE
+====================================================================
+
+Cuenta Stripe: acct_1GYkSxBOwXqiDvFM
+
+Publishable Key (frontend): pk_live_Y4LKwrgO7KzTGPPl2Dc6fDgV00UQ38H70T
+  → Archivo: .env.local (VITE_STRIPE_PUBLISHABLE_KEY)
+
+Secret Key (backend): sk_live_51GYkSx... (en backend/.env)
+
+PLANES Y PRICE IDs (LIVE):
+  ┌───────────┬────────────┬────────────────────────────────────────┐
+  │ Plan      │ Precio/mes │ Stripe Price ID                        │
+  ├───────────┼────────────┼────────────────────────────────────────┤
+  │ Free      │ $0         │ (sin Price ID — es gratis)             │
+  │ Starter   │ $9/mo      │ price_1T6fmFBOwXqiDvFMMcsDLcNw        │
+  │ Creator   │ $19/mo     │ price_1T6fmFBOwXqiDvFM5LIiuHNR        │
+  │ Pro       │ $39/mo     │ price_1T6fmGBOwXqiDvFMR44xMt1g        │
+  │ Test      │ $0.01/mo   │ price_1T6fmGBOwXqiDvFMBnKlF47a        │
+  └───────────┴────────────┴────────────────────────────────────────┘
+
+Cupón Early Bird: x1YT5QLm (20% off forever, max 100 canjes)
+Webhook Secret: whsec_tILnxGChuz75QVeDGT7imLjGTsycUpuH
+
+ENDPOINTS STRIPE (en backend/main.py):
+  POST /api/create-checkout-session  → Crea sesión de checkout
+  POST /api/create-portal-session    → Portal de cliente (cancelar, upgrade)
+  POST /api/stripe-webhook           → Webhook para actualizar tier del usuario
+
+====================================================================
+CORRECCIONES HECHAS HOY (2026-04-01)
+====================================================================
+
+1. ✅ FIX: Stripe Test Price ID inválido
+   ANTES: "price_test_1_cent" (placeholder, no funcionaba)
+   AHORA: "price_1T6fmGBOwXqiDvFMBnKlF47a" (Price ID real en Stripe LIVE)
+   ARCHIVO: src/config/stripe.js línea 20
+
+2. ✅ FIX: Video hardcodeado a 68 segundos máximo
+   ANTES: Math.min(rawDuration, 68) — limitaba TODO video a 68 seg
+   AHORA: Math.min(rawDuration, 1500) — safety cap de 25 min, pero la
+          duración real se controla por el script/audio generado
+   ARCHIVO: src/services/videoGenerator.js línea 522
+
+3. ✅ FIX: Cupón ID desincronizado en backend
+   ANTES: default "JaghrCfF" (cupón antiguo/inexistente)
+   AHORA: default "x1YT5QLm" (cupón real activo)
+   ARCHIVO: backend/main.py línea 1632
+
+====================================================================
+HISTORIAL DE CAMBIOS PREVIOS (sesiones anteriores)
+====================================================================
+
+✅ Stripe pasado de TEST a LIVE (productos, precios, keys)
+✅ Música de fondo eliminada completamente
+✅ Fix video que se pausaba al cambiar de pestaña (setTimeout → setInterval)
+✅ 900 ideas virales (100 por categoría, sin repeticiones)
+✅ Hashtags personalizados + fallback inteligente por categoría
+✅ Deploy sincronizado: Vercel (frontend) + Render (backend)
+✅ Autenticación con Supabase
+✅ Último commit GitHub: b706279
+
+====================================================================
+LÍMITES POR TIER
+====================================================================
+
+  ┌───────────┬──────────────┬──────────────┬───────────────┐
+  │ Tier      │ Videos/mes   │ Max duración │ Marca de agua │
+  ├───────────┼──────────────┼──────────────┼───────────────┤
+  │ free      │ 5            │ 60 seg       │ SÍ            │
+  │ starter   │ 30           │ 5 min        │ NO            │
+  │ creator   │ 100          │ 10 min       │ NO            │
+  │ pro       │ 300+         │ 20 min       │ NO            │
+  └───────────┴──────────────┴──────────────┴───────────────┘
+
+  Definido en: src/store/authStore.js (maxDuration por tier)
+  Enforced en: backend/main.py (TIER_LIMITS para video count)
+
+====================================================================
+CÓMO SE GENERA UN VIDEO (FLUJO COMPLETO)
+====================================================================
+
+1. Usuario escribe idea → Dashboard.jsx handleGenerate()
+2. Frontend llama POST /api/ai/generate-script al backend
+3. Backend genera guión con: Groq → HuggingFace → Gemini → Perplexity
+4. Frontend recibe guión, limpia marcadores [HOOK], [INTRO], etc.
+5. Frontend llama POST /api/generate-audio con el guión
+6. Backend genera TTS con Edge-TTS → devuelve archivo audio
+7. Frontend busca fotos/videos de fondo en Pexels
+8. videoGenerator.js renderiza el video:
+   - Canvas 720x1280 (vertical/shorts)
+   - Fotos con Ken Burns effect O video de fondo O gradiente
+   - Subtítulos virales word-by-word
+   - Marca de agua "facelesstube.app"
+   - MediaRecorder → WebM blob
+9. Video se guarda en IndexedDB + se muestra al usuario
+10. Usuario puede descargar o subir a YouTube
+
+====================================================================
+PENDIENTES / POSIBLES MEJORAS
+====================================================================
+
+⚠️ IMPORTANTE: Antes de que funcione el plan Test ($0.01), VERIFICA que
+   el Price ID "price_1T6fmGBOwXqiDvFMBnKlF47a" realmente existe en tu
+   Dashboard de Stripe → Productos. Si NO existe, necesitas crear un
+   producto de $0.01/mes en Stripe y usar el Price ID que te dé.
+
+⚠️ El backend en Render debe tener las variables de entorno actualizadas
+   (STRIPE_SECRET_KEY, STRIPE_COUPON_ID, etc.). Verifica en Render Dashboard.
+
+⚠️ El webhook de Stripe necesita configurarse en:
+   Stripe Dashboard → Developers → Webhooks → Add endpoint
+   URL: https://facelesstube-backend.onrender.com/api/stripe-webhook
+   Eventos: checkout.session.completed, customer.subscription.deleted
+
+[ ] Duración del video: ahora ya respeta la duración del audio/script,
+    pero el backend genera scripts con ~{duracion*2.5} palabras. Si el
+    usuario selecciona "5 minutos", el script debería tener ~750 palabras.
+    Verificar que el selector de duración del Dashboard pase la duración
+    correcta al endpoint /api/ai/generate-script.
+
+[ ] Webhook: Confirmar que el webhook secret está configurado en Render
+
+[ ] Play Store: Google Play Billing configurado pero necesita testing
+
+====================================================================
+CÓMO DESPLEGAR CAMBIOS
+====================================================================
+
+FRONTEND (Vercel):
+  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube
+  git add -A
+  git commit -m "fix: descripcion del cambio"
+  git push origin main
+  → Vercel se autodeploya desde GitHub
+
+BACKEND (Render):
+  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube\backend
+  git add -A
+  git commit -m "fix: descripcion del cambio"
+  git push origin main
+  → Render se autodeploya desde GitHub
+
+Si Vercel no muestra los cambios:
+  → Panel Vercel → Deployments → Redeploy → Sin caché
+
+====================================================================
+FIN DEL RESUMEN — Actualizado: 2026-04-01 03:02 CST
+====================================================================

@@ -1,0 +1,134 @@
+====================================================================
+FACELESSTUBE - CONFIGURACIÓN DE PAGOS STRIPE
+Fecha: 2026-02-28
+Documento de respaldo / backup
+====================================================================
+
+CONTEXTO:
+---------
+FacelessTube tiene 2 versiones de distribución:
+1. Play Store → cobra a través de Google Play Billing (30% comisión Google)
+2. Web/APK (descarga directa) → cobra a través de Stripe directo (~2.9% + $0.30)
+
+RAZONAMIENTO:
+-------------
+- Google exige que si distribuyes en Play Store, DEBES usar Google Play Billing
+- Para la versión web/APK descargable, Stripe es más rentable (2.9% vs 30%)
+- Mantener las 2 versiones permite maximizar ganancias según el canal
+- El código ya está preparado: playBilling.js para Android, stripe.js para web
+
+====================================================================
+PLANES DEFINIDOS:
+====================================================================
+
+| Plan     | Precio/mes | Videos/mes | Marca de agua | Notas                              |
+|----------|-----------|-----------|---------------|-------------------------------------|
+| Free     | $0        | 5         | SÍ            | YouTube only, baja prioridad        |
+| Starter  | $9        | 30        | NO            | YouTube only, soporte prioritario   |
+| Creator  | $19       | 100       | NO            | Próximamente multiplataforma        |
+| Pro      | $39       | 300       | NO            | Multiplataforma + soporte prior.    |
+
+NOTA: El plan "Free" NO necesita producto en Stripe (es gratis).
+
+====================================================================
+DESCUENTO EARLY BIRD:
+====================================================================
+
+- 20% de descuento VITALICIO (forever)
+- Para los PRIMEROS 100 usuarios que contraten cualquier plan de pago
+- Se implementa como cupón en Stripe con max redemptions = 100
+- Nombre: "Early Bird 20"
+
+====================================================================
+LO QUE SE CREÓ EN STRIPE (TEST MODE) VÍA API:
+====================================================================
+
+--- PRODUCTOS ---
+
+1. Producto "Starter" (prod_U40Y7u2wAgzACg)
+   - Precio: $9.00 USD / Mensual / Recurring
+   - Price ID: price_1T5sXQCSIbuRkSmWNc17CbVe
+
+2. Producto "Creator" (prod_U40ZnAjnTUc7Gw)
+   - Precio: $19.00 USD / Mensual / Recurring
+   - Price ID: price_1T5sZ7CSIbuRkSmWwBBf95xf
+
+3. Producto "Pro" (prod_U40ZB6HcSIxpZo)
+   - Precio: $39.00 USD / Mensual / Recurring
+   - Price ID: price_1T5sZLCSIbuRkSmWbe398tEn
+
+--- CUPÓN ---
+
+- Cupón "Early Bird 20" (ID: 9zeJkVVk)
+- 20% off forever
+- Max 100 canjes
+- (Se eliminó el cupón anterior npz7S8GG que tenía max 300)
+
+====================================================================
+ARCHIVOS DE CÓDIGO ACTUALIZADOS:
+====================================================================
+
+1. facelesstube/src/config/stripe.js
+   - Actualizado con Price IDs reales
+   - Planes renombrados: Starter/Creator/Pro (antes era Starter/Pro/Unlimited)
+   - Coupon ID actualizado a 9zeJkVVk
+
+2. facelesstube/.env
+   - Añadido VITE_STRIPE_PUBLISHABLE_KEY (necesita la pk_test_ del Dashboard)
+
+====================================================================
+ARCHIVOS DE CÓDIGO RELEVANTES (sin cambios):
+====================================================================
+
+STRIPE (web/APK):
+- Config:    facelesstube/src/config/stripe.js      [ACTUALIZADO]
+- Checkout:  facelesstube_web/api/create-checkout-session.js
+- Docs:      facelesstube/docs/stripe-setup.md
+
+PLAY STORE (Android):
+- Config:    facelesstube/src/config/playBilling.js
+- Docs:      facelesstube/docs/play-billing-setup.md
+
+====================================================================
+RESOLUCIÓN / QUÉ SE HIZO:
+====================================================================
+
+1. Busqué en TODAS las conversaciones previas para encontrar instrucciones.
+2. Encontré la conversación principal (e52f9972) con los planes confirmados.
+3. Usé la API de Stripe directamente con curl para crear todo:
+   - 3 productos (Starter, Creator, Pro)
+   - 3 precios recurrentes mensuales ($9, $19, $39)
+   - 1 cupón Early Bird 20% vitalicio (max 100 canjes)
+4. Actualicé stripe.js con los Price IDs reales.
+5. Actualicé .env con variable para Stripe publishable key.
+6. El usuario pidió cambiar max canjes de 300 a 100 -> eliminé cupón viejo, creé nuevo.
+
+====================================================================
+PENDIENTE:
+====================================================================
+
+1. El usuario necesita pegar su Publishable Key (pk_test_...) en el .env
+   - Dashboard > Developers > API Keys > Publishable key
+2. Restricción por IP: Stripe Dashboard > Developers > API Keys > 
+   click en la key > "Restrict key" > añadir IP del usuario
+3. Configurar webhook cuando la app esté desplegada
+4. Probar con tarjeta test: 4242 4242 4242 4242
+5. Cuando funcione en TEST, repetir todo en modo LIVE
+
+====================================================================
+SOBRE LA RESTRICCIÓN POR IP:
+====================================================================
+
+Stripe SÍ permite restringir API keys por IP, pero SOLO desde el Dashboard:
+1. Ve a Dashboard > Developers > API Keys
+2. Click en la Secret Key (o la que quieras restringir)
+3. Busca "Restrict key" o "IP restrictions"  
+4. Añade tu IP pública
+5. Para saber tu IP: busca "what is my ip" en Google
+
+NOTA: Esto solo aplica para las API keys (backend). La publishable key
+(pk_test) no necesita restricción porque es pública por diseño.
+
+====================================================================
+FIN DEL DOCUMENTO
+====================================================================

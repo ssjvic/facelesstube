@@ -17,12 +17,12 @@ const TIERS = {
     price: 9,
     priceAnnual: 90,
     videosPerMonth: 30,
-    maxDuration: 600, // 10 min
+    maxDuration: 300, // 5 min
     watermark: false,
     features: [
       "30 videos/mes",
       "Sin marca de agua",
-      "Hasta 10 min",
+      "Hasta 5 min",
       "Soporte email",
     ],
   },
@@ -31,12 +31,12 @@ const TIERS = {
     price: 19,
     priceAnnual: 190,
     videosPerMonth: 100,
-    maxDuration: 900, // 15 min
+    maxDuration: 600, // 10 min
     watermark: false,
     features: [
       "100 videos/mes",
       "Sin marca de agua",
-      "Hasta 15 min",
+      "Hasta 10 min",
       "Voces premium",
       "Soporte prioritario",
     ],
@@ -100,8 +100,11 @@ function buildUserFromSession(sessionUser, profile = null) {
 async function fetchAndSetProfile(sessionUser, set, getState) {
   let profile = null;
   try {
+    console.log("📊 fetchAndSetProfile: fetching user", sessionUser.id);
     profile = await db.getUser(sessionUser.id);
+    console.log("📊 fetchAndSetProfile: db.getUser result:", profile ? `found (videos=${profile.videos_this_month})` : "null");
     if (!profile) {
+      console.log("📊 fetchAndSetProfile: creating new user profile...");
       profile = await db.createUser({
         id: sessionUser.id,
         email: sessionUser.email,
@@ -114,6 +117,7 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
         videos_this_month: 0,
         youtube_connected: false,
       });
+      console.log("📊 fetchAndSetProfile: createUser result:", profile ? "created" : "FAILED");
     }
   } catch (e) {
     console.log("Profile fetch error (using session data):", e);
@@ -178,11 +182,16 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
     });
   }
 
+  console.log(`📊 fetchAndSetProfile FINAL: videosThisMonth=${serverUser.videosThisMonth}, tier=${serverUser.tier}, email=${serverUser.email}`);
+  // Temporarily show server video count for debugging persistence
   set({
     user: serverUser,
     loading: false,
     isDemo: false,
+    error: `[DEBUG] Server videos=${profile?.videos_this_month ?? 'N/A'}, Final=${serverUser.videosThisMonth}`,
   });
+  // Auto-clear the debug message after 5 seconds
+  setTimeout(() => set({ error: null }), 5000);
 }
 
 export const useAuthStore = create(
@@ -328,6 +337,16 @@ export const useAuthStore = create(
 
             console.log("🔑 Got ID token, signing in to Supabase...");
 
+            // Decode JWT for error diagnostics only
+            let jwtAud = "unknown";
+            try {
+              const parts = idToken.split(".");
+              const payload = JSON.parse(atob(parts[1]));
+              jwtAud = payload.aud;
+            } catch (decodeErr) {
+              console.log("Could not decode JWT:", decodeErr);
+            }
+
             // Use the ID token to create a Supabase session
             const { data, error } = await supabase.auth.signInWithIdToken({
               provider: "google",
@@ -335,8 +354,16 @@ export const useAuthStore = create(
             });
 
             if (error) {
-              console.error("❌ Supabase signInWithIdToken error:", error);
-              throw error;
+              console.error("❌ Supabase signInWithIdToken error:", JSON.stringify(error));
+              console.error("❌ Error message:", error.message);
+              console.error("❌ Error status:", error.status);
+              console.error("❌ Error code:", error.code);
+              // Show FULL error on screen - very visible
+              const errMsg = `ERROR: ${error.message}\n\nStatus: ${error.status || "N/A"}\nCode: ${error.code || "N/A"}\nAud: ${jwtAud}\nSupabase: ${import.meta.env.VITE_SUPABASE_URL}`;
+              set({ error: errMsg, loading: false });
+              // Don't throw - let user see the error
+              _loginInProgress = false;
+              return false;
             }
 
             if (data?.user) {
@@ -483,18 +510,33 @@ export const useAuthStore = create(
 
           // Check if email confirmation is required
           if (data.user && !data.session) {
+            // Try to auto-login anyway (works when email confirmation is disabled in Supabase)
+            console.log(
+              "🔄 No session after signup — attempting auto-login...",
+            );
+            const { data: loginData, error: loginError } =
+              await supabase.auth.signInWithPassword({ email, password });
+
+            if (!loginError && loginData?.session?.user) {
+              console.log("✅ Auto-login after signup successful");
+              await fetchAndSetProfile(loginData.session.user, set, get);
+              _loginInProgress = false;
+              return true;
+            }
+
+            // If auto-login failed, ask the user to confirm their email
+            console.log("📧 Auto-login failed — confirmation email sent");
             set({ loading: false });
             _loginInProgress = false;
             return { success: true, confirmationNeeded: true };
           }
 
-          // Session exists, set user
+          // Session exists immediately (email confirmation disabled), set user
           if (data.session?.user) {
-            set({
-              user: buildUserFromSession(data.session.user),
-              loading: false,
-              isDemo: false,
-            });
+            console.log(
+              "✅ Signup with immediate session — fetching profile...",
+            );
+            await fetchAndSetProfile(data.session.user, set, get);
             _loginInProgress = false;
             return true;
           }
@@ -586,6 +628,15 @@ export const useAuthStore = create(
                 console.error(
                   "❌ incrementVideoCount: retry also failed. Count may not persist.",
                 );
+                // Warn the user visibly
+                try {
+                  const { toast } = await import("../store/toastStore");
+                  toast.warning(
+                    "⚠️ No se pudo sincronizar tu uso. Verifica tu conexión.",
+                  );
+                } catch (_) {
+                  /* ignore */
+                }
               } else {
                 console.log(
                   "✅ incrementVideoCount: retry succeeded, count =",
@@ -619,6 +670,12 @@ export const useAuthStore = create(
             }
           } catch (e) {
             console.error("❌ incrementVideoCount: Supabase error:", e.message);
+            try {
+              const { toast } = await import("../store/toastStore");
+              toast.warning("⚠️ Error al guardar tu progreso en la nube.");
+            } catch (_) {
+              /* ignore */
+            }
           }
         }
 

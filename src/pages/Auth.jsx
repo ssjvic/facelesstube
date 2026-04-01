@@ -1,259 +1,31 @@
 import { useNavigate, Link } from "react-router-dom";
-import { Chrome, Mail, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useState, useEffect } from "react";
-import { useTranslation } from "../store/i18nStore";
 
 export default function Auth() {
-  const {
-    user,
-    loginWithGoogle,
-    loginWithEmail,
-    signUpWithEmail,
-    loading,
-    error,
-    isDemo,
-  } = useAuthStore();
-  const { language } = useTranslation();
+  const { user, loginWithGoogle, error, loading } = useAuthStore();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [mode, setMode] = useState("login"); // 'login' | 'signup'
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-    name: "",
-  });
-  const [formError, setFormError] = useState("");
   const navigate = useNavigate();
 
   // Auto-redirect if user is already authenticated
-  // This is the ONLY place that navigates to /app after login.
-  // The login handlers below do NOT call navigate — they let this
-  // useEffect react to the user state change, which avoids the race
-  // condition where navigate fires before Zustand propagates to App.jsx.
   useEffect(() => {
-    if (user) {
-      console.log("🔄 Auth: user detected, redirecting to /app");
+    if (user && !loading) {
       navigate("/app", { replace: true });
     }
-  }, [user, navigate]);
-
-  const texts = {
-    welcome: {
-      es: "Bienvenido a",
-      en: "Welcome to",
-      pt: "Bem-vindo ao",
-      fr: "Bienvenue à",
-      de: "Willkommen bei",
-      zh: "欢迎使用",
-    },
-    loginSubtitle: {
-      es: "Inicia sesión para empezar a crear videos con IA",
-      en: "Sign in to start creating videos with AI",
-      pt: "Faça login para começar a criar vídeos com IA",
-      fr: "Connectez-vous pour créer des vidéos avec l'IA",
-      de: "Melden Sie sich an, um Videos mit KI zu erstellen",
-      zh: "登录以开始使用AI创建视频",
-    },
-    signupSubtitle: {
-      es: "Crea tu cuenta gratis",
-      en: "Create your free account",
-      pt: "Crie sua conta gratuita",
-      fr: "Créez votre compte gratuit",
-      de: "Erstellen Sie Ihr kostenloses Konto",
-      zh: "创建您的免费账户",
-    },
-    continueGoogle: {
-      es: "Continuar con Google",
-      en: "Continue with Google",
-      pt: "Continuar com Google",
-      fr: "Continuer avec Google",
-      de: "Mit Google fortfahren",
-      zh: "使用Google继续",
-    },
-    orEmail: {
-      es: "O con email",
-      en: "Or with email",
-      pt: "Ou com email",
-      fr: "Ou avec email",
-      de: "Oder mit E-Mail",
-      zh: "或使用邮箱",
-    },
-    email: {
-      es: "Email",
-      en: "Email",
-      pt: "Email",
-      fr: "Email",
-      de: "E-Mail",
-      zh: "邮箱",
-    },
-    password: {
-      es: "Contraseña",
-      en: "Password",
-      pt: "Senha",
-      fr: "Mot de passe",
-      de: "Passwort",
-      zh: "密码",
-    },
-    name: {
-      es: "Nombre",
-      en: "Name",
-      pt: "Nome",
-      fr: "Nom",
-      de: "Name",
-      zh: "姓名",
-    },
-    login: {
-      es: "Iniciar Sesión",
-      en: "Sign In",
-      pt: "Entrar",
-      fr: "Se connecter",
-      de: "Anmelden",
-      zh: "登录",
-    },
-    signup: {
-      es: "Crear Cuenta",
-      en: "Sign Up",
-      pt: "Cadastrar",
-      fr: "S'inscrire",
-      de: "Registrieren",
-      zh: "注册",
-    },
-    noAccount: {
-      es: "¿No tienes cuenta?",
-      en: "Don't have an account?",
-      pt: "Não tem conta?",
-      fr: "Vous n'avez pas de compte?",
-      de: "Kein Konto?",
-      zh: "没有账户？",
-    },
-    hasAccount: {
-      es: "¿Ya tienes cuenta?",
-      en: "Already have an account?",
-      pt: "Já tem conta?",
-      fr: "Vous avez déjà un compte?",
-      de: "Bereits ein Konto?",
-      zh: "已有账户？",
-    },
-    demoMode: {
-      es: "Modo Demo",
-      en: "Demo Mode",
-      pt: "Modo Demo",
-      fr: "Mode Démo",
-      de: "Demo-Modus",
-      zh: "演示模式",
-    },
-    demoNote: {
-      es: "En modo demo, se creará una cuenta de prueba automáticamente.\nPara producción, configura Supabase.",
-      en: "In demo mode, a test account will be created automatically.\nFor production, configure Supabase.",
-      pt: "No modo demo, uma conta de teste será criada automaticamente.\nPara produção, configure o Supabase.",
-      fr: "En mode démo, un compte de test sera créé automatiquement.\nPour la production, configurez Supabase.",
-      de: "Im Demo-Modus wird automatisch ein Testkonto erstellt.\nFür die Produktion konfigurieren Sie Supabase.",
-      zh: "在演示模式下，将自动创建测试账户。\n对于生产环境，请配置Supabase。",
-    },
-    freeIncludes: {
-      es: "Incluye gratis:",
-      en: "Free includes:",
-      pt: "Inclui grátis:",
-      fr: "Inclus gratuitement:",
-      de: "Kostenlos enthalten:",
-      zh: "免费包含：",
-    },
-    feature1: {
-      es: "3-5 videos por mes",
-      en: "3-5 videos per month",
-      pt: "3-5 vídeos por mês",
-      fr: "3-5 vidéos par mois",
-      de: "3-5 Videos pro Monat",
-      zh: "每月3-5个视频",
-    },
-    feature2: {
-      es: "100 créditos iniciales",
-      en: "100 initial credits",
-      pt: "100 créditos iniciais",
-      fr: "100 crédits initiaux",
-      de: "100 Startguthaben",
-      zh: "100个初始积分",
-    },
-    feature3: {
-      es: "Todas las funciones básicas",
-      en: "All basic features",
-      pt: "Todas as funções básicas",
-      fr: "Toutes les fonctions de base",
-      de: "Alle Grundfunktionen",
-      zh: "所有基本功能",
-    },
-  };
-
-  const t = (key) => texts[key]?.[language] || texts[key]?.en || key;
+  }, [user, loading, navigate]);
 
   const handleGoogleLogin = async () => {
+    if (isLoggingIn) return;
     setIsLoggingIn(true);
-    setFormError("");
-    const result = await loginWithGoogle();
-    // For web OAuth: loginWithGoogle triggers a full page redirect,
-    // so this line only runs on native or if login failed.
-    // Only reset spinner if login explicitly failed (returned false).
-    if (result === false) {
-      setIsLoggingIn(false);
-    }
-    // If result === true (native success), navigation happens via useEffect
-    // If redirect happened (web), this code never actually runs
-  };
-
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    setFormError("");
-    setIsLoggingIn(true);
-
-    if (mode === "signup" && !formData.name.trim()) {
-      setFormError("Por favor ingresa tu nombre");
-      setIsLoggingIn(false);
-      return;
-    }
-
-    if (!formData.email.trim() || !formData.password.trim()) {
-      setFormError("Por favor completa todos los campos");
-      setIsLoggingIn(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setFormError("La contraseña debe tener al menos 6 caracteres");
-      setIsLoggingIn(false);
-      return;
-    }
-
     try {
-      let success;
-      if (mode === "login") {
-        success = await loginWithEmail(formData.email, formData.password);
-      } else {
-        success = await signUpWithEmail(
-          formData.email,
-          formData.password,
-          formData.name,
-        );
+      const success = await loginWithGoogle();
+      if (success) {
+        // Navigation happens via useEffect
       }
-
-      if (success === true) {
-        // Navigation happens automatically via useEffect when user state updates
-      } else if (success?.confirmationNeeded) {
-        setFormError("Revisa tu email para confirmar tu cuenta");
-      } else if (success?.error) {
-        setFormError(success.error);
-      } else if (success === false) {
-        // Error was already set in the store, show it
-        const storeError = useAuthStore.getState().error;
-        if (storeError && !formError) {
-          setFormError(storeError);
-        }
-      }
-    } catch (err) {
-      console.error("❌ Auth form error:", err);
-      setFormError(err.message || "Error al iniciar sesión");
+    } catch (e) {
+      console.error("Google login error:", e);
     }
-
     setIsLoggingIn(false);
   };
 
@@ -270,176 +42,96 @@ export default function Auth() {
         </Link>
 
         {/* Logo */}
-        <img
-          src="/logo.png"
-          alt="FacelessTube"
-          className="h-12 w-auto mx-auto mb-6"
-        />
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-neon-purple to-neon-pink flex items-center justify-center mx-auto mb-4 shadow-lg shadow-neon-purple/30">
+            <span className="text-2xl">🎬</span>
+          </div>
+          <h1 className="text-2xl font-display font-bold">FacelessTube</h1>
+          <p className="text-white/50 text-sm mt-1">
+            Inicia sesión para continuar
+          </p>
+        </div>
 
-        <h1 className="text-2xl font-display font-bold mb-2 text-center">
-          {t("welcome")} <span className="text-gradient">FacelessTube</span>
-        </h1>
-
-        <p className="text-white/60 mb-6 text-center text-sm">
-          {mode === "login" ? t("loginSubtitle") : t("signupSubtitle")}
-        </p>
-
-        {/* Error messages */}
-        {(error || formError) && (
-          <div className="mb-4 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 text-sm">
-            {formError || error}
+        {/* Error message */}
+        {error && (
+          <div className="mb-6 p-3 rounded-xl bg-red-500/20 border border-red-500/50 text-red-300 text-sm text-center">
+            {error}
           </div>
         )}
 
-        {/* Google Login Button */}
+        {/* Google Sign-In Button */}
         <button
           onClick={handleGoogleLogin}
-          disabled={loading || isLoggingIn}
-          className="
-                        w-full py-3 px-6 rounded-xl
-                        bg-white text-dark-900 font-semibold
-                        flex items-center justify-center gap-3
-                        hover:bg-white/90 transition-all
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                    "
+          disabled={isLoggingIn}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-white text-gray-800 font-semibold hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {isLoggingIn ? (
-            <div className="w-5 h-5 border-2 border-dark-900/30 border-t-dark-900 rounded-full animate-spin" />
+            <Loader2 size={20} className="animate-spin text-gray-600" />
           ) : (
-            <>
-              <Chrome size={20} />
-              {t("continueGoogle")}
-            </>
+            <svg width="20" height="20" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
           )}
+          {isLoggingIn ? "Conectando..." : "Continuar con Google"}
         </button>
 
         {/* Divider */}
-        <div className="my-6 flex items-center gap-4">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/40 text-sm">{t("orEmail")}</span>
-          <div className="flex-1 h-px bg-white/10" />
+        <div className="my-6 flex items-center gap-3">
+          <div className="flex-1 h-px bg-white/10"></div>
+          <span className="text-white/30 text-xs">SEGURO Y RÁPIDO</span>
+          <div className="flex-1 h-px bg-white/10"></div>
         </div>
 
-        {/* Email Form */}
-        <form onSubmit={handleEmailSubmit} className="space-y-4">
-          {mode === "signup" && (
-            <div>
-              <label className="block text-sm text-white/60 mb-1">
-                {t("name")}
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="input-glass"
-                placeholder="Tu nombre"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm text-white/60 mb-1">
-              {t("email")}
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className="input-glass"
-              placeholder="tu@email.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-white/60 mb-1">
-              {t("password")}
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="input-glass pr-10"
-                placeholder="••••••••"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+        {/* Info */}
+        <div className="text-center space-y-3">
+          <p className="text-white/40 text-xs">
+            Al continuar, aceptas nuestros términos de servicio y política de
+            privacidad.
+          </p>
+          <div className="flex items-center justify-center gap-4 text-white/30 text-xs">
+            <div className="flex items-center gap-1">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Cifrado SSL
+            </div>
+            <div className="flex items-center gap-1">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              Datos protegidos
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading || isLoggingIn}
-            className="w-full btn-neon py-3 flex items-center justify-center gap-2"
-          >
-            {isLoggingIn ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>
-                <Mail size={18} />
-                {mode === "login" ? t("login") : t("signup")}
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Toggle mode */}
-        <p className="mt-6 text-center text-sm text-white/60">
-          {mode === "login" ? t("noAccount") : t("hasAccount")}{" "}
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "signup" : "login");
-              setFormError("");
-            }}
-            className="text-neon-cyan hover:underline"
-          >
-            {mode === "login" ? t("signup") : t("login")}
-          </button>
-        </p>
-
-        {/* Demo mode notice */}
-        {isDemo && (
-          <>
-            <div className="mt-6 flex items-center gap-4">
-              <div className="flex-1 h-px bg-white/10" />
-              <span className="text-white/40 text-sm">{t("demoMode")}</span>
-              <div className="flex-1 h-px bg-white/10" />
-            </div>
-
-            <p className="mt-4 text-white/40 text-xs text-center whitespace-pre-line">
-              {t("demoNote")}
-            </p>
-          </>
-        )}
-
-        {/* Features list */}
-        <div className="mt-6 pt-6 border-t border-white/10">
-          <p className="text-sm font-medium mb-3">{t("freeIncludes")}</p>
-          <ul className="space-y-2 text-sm text-white/60">
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-              {t("feature1")}
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-              {t("feature2")}
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-              {t("feature3")}
-            </li>
-          </ul>
         </div>
       </div>
     </div>

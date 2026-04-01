@@ -20,6 +20,8 @@ import {
   Camera,
   Image,
   Zap,
+  Clock,
+  Lock,
 } from "lucide-react";
 import {
   PREINSTALLED_VIDEOS,
@@ -96,6 +98,9 @@ export default function Dashboard() {
   const [showOnboarding, setShowOnboarding] = useState(() => {
     return !localStorage.getItem("facelesstube_onboarding_done");
   });
+
+  // Video duration — in minutes, capped by tier
+  const [videoDuration, setVideoDuration] = useState(1);
 
   // Visual style — photos (Pexels auto), gradient, or clips (preinstalled)
   const [visualStyle, setVisualStyle] = useState("photos"); // 'photos' | 'gradient' | 'clips'
@@ -1417,6 +1422,58 @@ export default function Dashboard() {
                       : "Se generará un fondo gradiente animado que combina con tu contenido"}
                 </span>
               </div>
+            </div>
+
+            {/* ⏱️ Duration Selector */}
+            <div className="mb-4 md:mb-6">
+              <label className="block text-sm font-medium mb-2">
+                ⏱️ Duración del video
+              </label>
+              <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
+                {[1, 3, 5, 10, 15, 20].map((mins) => {
+                  const maxMins = Math.floor((tierInfo.maxDuration || 60) / 60);
+                  const isAllowed = mins <= maxMins;
+                  const isSelected = videoDuration === mins;
+                  return (
+                    <button
+                      key={mins}
+                      onClick={() => {
+                        if (isAllowed) setVideoDuration(mins);
+                      }}
+                      className={`relative px-3 py-2.5 rounded-xl border whitespace-nowrap transition-all text-xs flex items-center gap-1.5 ${
+                        isSelected
+                          ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan shadow-sm shadow-neon-cyan/20"
+                          : isAllowed
+                            ? "border-white/10 text-white/60 hover:border-white/30"
+                            : "border-white/5 text-white/20 cursor-not-allowed"
+                      }`}
+                      disabled={!isAllowed}
+                    >
+                      {isAllowed ? (
+                        <Clock size={13} />
+                      ) : (
+                        <Lock size={13} />
+                      )}
+                      <span>{mins} min</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Upgrade prompt if max tier duration is limited */}
+              {(tierInfo.maxDuration || 60) < 1200 && (
+                <div className="mt-2 p-2 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
+                  <Lock size={12} className="text-neon-purple flex-shrink-0" />
+                  <span className="text-[10px] text-white/50">
+                    Tu plan permite hasta {Math.floor((tierInfo.maxDuration || 60) / 60)} min.
+                    <a
+                      href="/app/premium"
+                      className="text-neon-cyan hover:underline ml-1"
+                    >
+                      Mejora tu plan →
+                    </a>
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Error message */}

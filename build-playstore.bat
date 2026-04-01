@@ -1,6 +1,6 @@
 @echo off
 echo ================================================
-echo   FacelessTube - Play Store Build
+echo   FacelessTube - Play Store Build (Signed AAB)
 echo   Uses Google Play Billing (NOT Stripe)
 echo ================================================
 echo.
@@ -27,9 +27,9 @@ if %errorlevel% neq 0 (
 )
 echo.
 
-echo [3/3] Building APK with Gradle...
+echo [3/3] Building signed AAB with Gradle...
 cd android
-call gradlew.bat assembleDebug
+call gradlew.bat bundleRelease
 if %errorlevel% neq 0 (
     echo ERROR: Gradle build failed!
     cd ..
@@ -40,6 +40,9 @@ echo.
 
 echo ================================================
 echo   BUILD SUCCESSFUL!
-echo   APK: android\app\build\outputs\apk\debug\app-debug.apk
-echo   Mode: Google Play Billing
+echo   AAB: android\app\build\outputs\bundle\release\app-release.aab
+echo   Mode: Google Play Billing (signed release)
+echo.
+echo   Upload this AAB to Google Play Console:
+echo   https://play.google.com/console
 echo ================================================
