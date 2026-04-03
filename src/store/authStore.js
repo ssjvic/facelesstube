@@ -8,9 +8,9 @@ const TIERS = {
     name: "Free",
     price: 0,
     videosPerMonth: 5,
-    maxDuration: 60, // seconds (1 minute)
+    maxDuration: 1200, // seconds (20 minutes) — all durations unlocked
     watermark: true,
-    features: ["3-5 videos/mes", "Marca de agua", "1 minuto max"],
+    features: ["3-5 videos/mes", "Marca de agua", "Hasta 20 min"],
   },
   starter: {
     name: "Starter",
