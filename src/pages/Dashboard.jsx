@@ -648,7 +648,7 @@ export default function Dashboard() {
           blob: videoBlob,
           videoUrl,
           thumbnailUrl,
-          duration: Math.round(fullScript.split(" ").length / 2.5), // estimate
+          duration: Math.round(fullScript.split(" ").length / 2.2), // estimate (~2.2 words/sec TTS)
         },
         user?.id,
       );

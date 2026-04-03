@@ -184,6 +184,11 @@ export default function Premium() {
 
   const isPlayStoreBuild = import.meta.env.VITE_BILLING_MODE === "playstore";
 
+  // Filter tiers: hide test plan on Play Store builds
+  const visibleTiers = isPlayStoreBuild
+    ? tiers.filter((t) => !t.testOnly)
+    : tiers;
+
   const handleUpgrade = async (tier) => {
     if (tier.id === "free" || tier.id === user?.tier) return;
 
@@ -285,7 +290,7 @@ export default function Premium() {
 
       {/* Pricing cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 mb-8 md:mb-12">
-        {tiers.map((tier) => {
+        {visibleTiers.map((tier) => {
           const isCurrentPlan = user?.tier === tier.id;
           const price =
             billingCycle === "annual" ? tier.price.annual : tier.price.monthly;

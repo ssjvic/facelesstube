@@ -14,7 +14,8 @@ export const PLAY_STORE_PRODUCTS = {
   },
 };
 
-// Map tier to product IDs
+// Map UI tier name → Play Store product IDs
+// NOTE: UI "Creator" ($19) → product "pro_*" | UI "Pro" ($39) → product "unlimited_*"
 export const TIER_PRODUCTS = {
   starter: {
     monthly: "starter_monthly",
@@ -224,11 +225,11 @@ export const getActiveSubscriptions = () => {
     .filter((product) => product && product.owned);
 };
 
-// Map product ID to tier name
+// Map product ID back to UI tier name
 export const productToTier = (productId) => {
   if (!productId) return "free";
   if (productId.includes("starter")) return "starter";
-  if (productId.includes("pro")) return "pro";
-  if (productId.includes("unlimited")) return "unlimited";
+  if (productId.includes("unlimited")) return "pro";      // unlimited_* → UI "Pro" ($39)
+  if (productId.includes("pro")) return "creator";         // pro_* → UI "Creator" ($19)
   return "free";
 };

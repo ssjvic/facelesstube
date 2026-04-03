@@ -12,6 +12,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Tutorials from "./pages/Tutorials";
 import Success from "./pages/Success";
+import ThankYou from "./pages/ThankYou";
 import ToastContainer from "./components/ui/Toast";
 import SplashScreen from "./components/ui/SplashScreen";
 import AdModal from "./components/ui/AdModal";
@@ -180,6 +181,7 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/success" element={<Success />} />
+        <Route path="/thank-you" element={<ThankYou />} />
 
         {/* Protected routes */}
         <Route
@@ -192,6 +194,7 @@ function App() {
           <Route path="premium" element={<Premium />} />
           <Route path="library" element={<VideoLibrary />} />
           <Route path="tutorials" element={<Tutorials />} />
+          <Route path="thank-you" element={<ThankYou />} />
         </Route>
 
         {/* Catch all */}

@@ -131,7 +131,7 @@ export const generateAudioBlob = async (text, voice = null, rate = 0.9) => {
 
         // Calculate approximate duration
         const wordCount = text.split(/\s+/).length
-        const duration = (wordCount / 150) * 60 * 1000 / rate // ~150 words per minute
+        const duration = (wordCount / 132) * 60 * 1000 / rate // ~132 words per minute (~2.2 words/sec)
 
         utterance.onend = () => {
             resolve({

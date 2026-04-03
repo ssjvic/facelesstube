@@ -516,9 +516,10 @@ export async function createVideoWithLibrary(
 
       // Calculate actual video duration based on audio or word count
       // Audio duration is the ground truth; fall back to word-count estimate
+      // Using 2.2 words/sec to match backend TTS narration speed
       const rawDuration = audioBuffer
         ? Math.ceil(audioBuffer.duration)
-        : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.5));
+        : Math.max(30, Math.ceil(fullText.split(/\s+/).length / 2.2));
       // Duration is determined by the TTS audio (which matches the script length).
       // Tier-based limits are enforced at script generation time on the backend.
       // Safety cap at 25 minutes to prevent runaway renders.

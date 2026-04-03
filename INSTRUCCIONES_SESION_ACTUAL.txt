@@ -1,0 +1,130 @@
+====================================================================
+ FACELESSTUBE — SESIÓN: 2026-04-03 01:42 CST
+ PROBLEMA: Los videos solo salen de 1 minuto
+====================================================================
+
+╔══════════════════════════════════════════════════════════════════╗
+║  DIAGNÓSTICO REALIZADO                                          ║
+╠══════════════════════════════════════════════════════════════════╣
+║  CAUSA RAÍZ ENCONTRADA:                                         ║
+║  El main.py del backend tiene TODAS las correcciones necesarias ║
+║  (chunked generation, expansion loop, duration_seconds), pero   ║
+║  NUNCA SE HIZO PUSH al repositorio de GitHub.                   ║
+║                                                                  ║
+║  El deploy en Render (producción) aún tiene la versión vieja    ║
+║  del commit 782f374 que NO tiene chunked generation.            ║
+║                                                                  ║
+║  Commit actual en GitHub backend: 782f374                        ║
+║  Cambios locales pendientes: main.py (con TODA la lógica nueva) ║
+╚══════════════════════════════════════════════════════════════════╝
+
+====================================================================
+QUÉ TIENE EL main.py LOCAL (que falta en producción):
+====================================================================
+
+1. ✅ FrontendScriptRequest con duration_seconds (línea 225)
+   - Acepta duración de 15 a 1200 segundos
+
+2. ✅ Cálculo de word target dinámico (líneas 946-953)
+   - WORDS_PER_SECOND = 2.2
+   - word_target = target_duration * 2.2
+   - word_min = word_target * 0.90
+   - word_max = word_target * 1.10
+
+3. ✅ CHUNKED GENERATION para videos >60s (líneas 973-1057)
+   - Divide el script en segmentos de ~250 palabras cada uno
+   - Cada segmento se genera con generate_segment()
+   - Evita repetición pasando resumen de segmentos anteriores
+   - Genera metadata (título, hashtags) por separado
+
+4. ✅ generate_segment() helper (líneas 868-939)
+   - Genera un segmento de narración en texto plano
+   - Limpia JSON artifacts automáticamente
+   - 3 intentos con temperatura creciente
+
+5. ✅ Expansion loop para scripts cortos (líneas 1295-1376)
+   - Si después de todo el script sigue corto
+   - Hasta 30 intentos de expansión
+   - Detección de stalls (8 consecutivos sin progreso)
+
+6. ✅ Safety cap de 1500 segundos (25 min) en videoGenerator.js
+
+====================================================================
+LO QUE FALTA HACER:
+====================================================================
+
+PASO 1: Push del backend
+  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube\backend
+  git add -A
+  git commit -m "feat: chunked script generation for long videos, expansion loop, stall detection"
+  git push origin main
+
+PASO 2: Push del frontend (cambios menores ya incluidos)
+  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube
+  git add -A
+  git commit -m "update: sync all pending changes"
+  git push origin main
+
+PASO 3: Verificar deploy en Render
+  - Render detectará el push y hará auto-deploy
+  - Esperar ~2-3 minutos
+  - Verificar en https://facelesstube-backend.onrender.com/health
+
+PASO 4: Probar generación con duración >1min
+  - Ir a https://facelesstube.app
+  - Seleccionar duración de 3 minutos
+  - Generar un video y verificar que el script tenga ~396 palabras
+    (3 min = 180s × 2.2 = 396 palabras)
+
+====================================================================
+ARCHIVOS MODIFICADOS
+====================================================================
+
+BACKEND:
+  backend/main.py — Script generation con chunks + expansion
+
+FRONTEND (sin cambios de duración, ya estaba bien):
+  src/pages/Dashboard.jsx — videoDuration state, durationSec conversion
+  src/services/geminiService.js — Pasa duration_seconds al backend
+  src/services/videoGenerator.js — Safety cap 1500s, duración por audio
+
+====================================================================
+FLUJO COMPLETO DE DURACIÓN (cómo funciona):
+====================================================================
+
+  1. Usuario selecciona 3 min en Dashboard.jsx
+     → videoDuration = 3 (estado en minutos)
+  
+  2. handleGenerate() convierte a segundos
+     → durationSec = 3 * 60 = 180
+  
+  3. generateScript() en geminiService.js envía al backend
+     → POST /api/ai/generate-script
+     → body: { idea, language, template, user_id, duration_seconds: 180 }
+  
+  4. Backend ai_generate_script() en main.py
+     → target_duration = 180
+     → word_target = 180 * 2.2 = 396
+     → use_chunked_generation = true (180 > 60)
+     → 2 chunks de ~198 palabras cada uno
+  
+  5. TTS genera audio de ~180 segundos
+  
+  6. videoGenerator.js renderiza video
+     → totalDurationSec = audioBuffer.duration (~180s)
+     → numScenes = min(scenes.length, ceil(180/5)) = 36 scenes
+  
+  7. Video de 3 minutos ✅
+
+====================================================================
+SI EL SISTEMA CRASHEA — RESUMEN RÁPIDO
+====================================================================
+
+  • El código local YA está correcto
+  • Solo falta: git push en backend + frontend
+  • Render auto-deploy al detectar push
+  • Probar con video >1min después del deploy
+
+====================================================================
+FIN — 2026-04-03 01:45 CST
+====================================================================
