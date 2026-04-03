@@ -3,18 +3,32 @@
 import { createClient } from "@supabase/supabase-js";
 
 // Environment variables - in production, use .env file
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client — only if properly configured
+// If env vars are missing, create a safe dummy to prevent app crash
+let _supabase = null;
+try {
+  if (supabaseUrl && supabaseUrl !== "YOUR_SUPABASE_URL" &&
+      supabaseAnonKey && supabaseAnonKey !== "YOUR_SUPABASE_ANON_KEY") {
+    _supabase = createClient(supabaseUrl, supabaseAnonKey);
+  } else {
+    console.warn("⚠️ Supabase not configured — running in offline mode");
+  }
+} catch (e) {
+  console.warn("⚠️ Supabase init failed:", e.message);
+}
+export const supabase = _supabase;
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = () => {
-  return (
+  return !!(
+    supabaseUrl &&
+    supabaseAnonKey &&
     supabaseUrl !== "YOUR_SUPABASE_URL" &&
-    supabaseAnonKey !== "YOUR_SUPABASE_ANON_KEY"
+    supabaseAnonKey !== "YOUR_SUPABASE_ANON_KEY" &&
+    _supabase !== null
   );
 };
 
@@ -24,8 +38,9 @@ export const isSupabaseConfigured = () => {
 export const db = {
   // Users
   async getUser(userId) {
+    if (!_supabase) return null;
     try {
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from("users")
         .select("*")
         .eq("id", userId)
@@ -43,8 +58,9 @@ export const db = {
   },
 
   async createUser(user) {
+    if (!_supabase) return null;
     try {
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from("users")
         .insert([user])
         .select()
@@ -62,8 +78,9 @@ export const db = {
   },
 
   async updateUser(userId, updates) {
+    if (!_supabase) return null;
     try {
-      const { data, error } = await supabase
+      const { data, error } = await _supabase
         .from("users")
         .update(updates)
         .eq("id", userId)
@@ -90,7 +107,8 @@ export const db = {
 
   // Videos
   async getVideos(userId) {
-    const { data, error } = await supabase
+    if (!_supabase) return [];
+    const { data, error } = await _supabase
       .from("videos")
       .select("*")
       .eq("user_id", userId)
@@ -101,7 +119,8 @@ export const db = {
   },
 
   async saveVideo(video) {
-    const { data, error } = await supabase
+    if (!_supabase) return null;
+    const { data, error } = await _supabase
       .from("videos")
       .insert([video])
       .select()
@@ -112,7 +131,8 @@ export const db = {
   },
 
   async deleteVideo(videoId) {
-    const { error } = await supabase.from("videos").delete().eq("id", videoId);
+    if (!_supabase) return false;
+    const { error } = await _supabase.from("videos").delete().eq("id", videoId);
 
     if (error) throw error;
     return true;
@@ -120,7 +140,8 @@ export const db = {
 
   // Subscriptions
   async getSubscription(userId) {
-    const { data, error } = await supabase
+    if (!_supabase) return null;
+    const { data, error } = await _supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
@@ -131,7 +152,8 @@ export const db = {
   },
 
   async createOrUpdateSubscription(subscription) {
-    const { data, error } = await supabase
+    if (!_supabase) return null;
+    const { data, error } = await _supabase
       .from("subscriptions")
       .upsert([subscription])
       .select()
