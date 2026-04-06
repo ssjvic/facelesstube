@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Layout from "./components/layout/Layout";
-import Landing from "./pages/Landing";
+import ComingSoon from "./pages/ComingSoon";
 import Dashboard from "./pages/Dashboard";
 import History from "./pages/History";
 import Account from "./pages/Account";
@@ -49,7 +49,7 @@ function App() {
         localStorage.removeItem("facelesstube_promo_expires");
         localStorage.removeItem("facelesstube_promo_code");
         toast.info(
-          "Tu periodo de prueba ha terminado. Actualiza a premium para seguir disfrutando.",
+          "Tu periodo de prueba ha terminado. Mejora tu plan para seguir disfrutando.",
         );
       }
     }
@@ -176,7 +176,7 @@ function App() {
 
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<ComingSoon />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
