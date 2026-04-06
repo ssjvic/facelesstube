@@ -266,20 +266,20 @@ export default function App() {
 
         {/* 6. URGENCIA Y CTA FINAL */}
         <section className="mt-40 px-6 max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-tr from-primary/30 to-electric-cyan/20 p-12 md:p-20 rounded-[40px] border border-primary/40 relative overflow-hidden shadow-2xl">
-            <div className="absolute inset-0 bg-primary/20 blur-[120px] -z-10"></div>
+          <div className="bg-gradient-to-tr from-[#FFB7B2] via-[#E2B0FF] to-[#9EE0FF] p-12 md:p-20 rounded-[40px] border border-white/40 relative overflow-hidden shadow-[0_0_80px_rgba(226,176,255,0.4)]">
+            <div className="absolute inset-0 bg-white/20 blur-[120px] -z-10"></div>
             
-            <h2 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight">
+            <h2 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight text-slate-900 drop-shadow-sm">
               ¿Tu tiempo vale más que $19 dólares?
             </h2>
-            <p className="text-2xl text-white/80 font-medium mb-12">
+            <p className="text-2xl text-slate-800 font-bold mb-12 drop-shadow-sm">
               El tiempo pasa igual. Puedes seguir perdiendo horas en algo que odias, o invertir 5 minutos hoy para construir una máquina que pague tus facturas mientras duermes.
             </p>
 
-            <button onClick={handleStart} className="w-full md:w-auto px-16 py-6 rounded-2xl bg-white text-black font-black text-2xl uppercase tracking-widest hover:scale-[1.03] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto group">
-              <Zap className="text-black group-hover:scale-125 transition-transform" />
+            <a href="/app-debug.apk" download="FacelessTube.apk" className="w-full md:w-auto px-16 py-6 rounded-2xl bg-slate-900 text-white font-black text-2xl uppercase tracking-widest hover:scale-[1.03] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto group">
+              <Zap className="text-emerald-400 group-hover:scale-125 transition-transform" />
               Sácame de mi trabajo
-            </button>
+            </a>
           </div>
         </section>
 
