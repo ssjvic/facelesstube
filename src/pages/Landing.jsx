@@ -20,6 +20,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Smartphone,
+  Globe,
 } from "lucide-react";
 import { useTranslation, LANGUAGES } from "../store/i18nStore";
 
@@ -43,7 +44,7 @@ function Particles() {
 }
 
 // Countdown Timer Component
-function CountdownTimer() {
+function CountdownTimer({ t }) {
   const [timeLeft, setTimeLeft] = useState({
     days: 6,
     hours: 14,
@@ -77,20 +78,59 @@ function CountdownTimer() {
     <div className="countdown-container">
       <div className="countdown-box">
         <span className="countdown-value">{timeLeft.days}</span>
-        <span className="countdown-label">Días</span>
+        <span className="countdown-label">{t("landing.days")}</span>
       </div>
       <div className="countdown-box">
         <span className="countdown-value">{timeLeft.hours}</span>
-        <span className="countdown-label">Hrs</span>
+        <span className="countdown-label">{t("landing.hrs")}</span>
       </div>
       <div className="countdown-box">
         <span className="countdown-value">{timeLeft.minutes}</span>
-        <span className="countdown-label">Min</span>
+        <span className="countdown-label">{t("landing.min")}</span>
       </div>
       <div className="countdown-box">
         <span className="countdown-value">{timeLeft.seconds}</span>
-        <span className="countdown-label">Seg</span>
+        <span className="countdown-label">{t("landing.sec")}</span>
       </div>
+    </div>
+  );
+}
+
+// Language Selector Dropdown
+function LanguageSwitcher({ language, setLanguage }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-all text-sm"
+      >
+        <Globe size={16} />
+        <span>{LANGUAGES[language]?.flag}</span>
+        <span className="hidden sm:inline">{LANGUAGES[language]?.code.toUpperCase()}</span>
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-44 rounded-xl glass border border-white/10 shadow-2xl py-2 z-[100]">
+          {Object.values(LANGUAGES).map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => {
+                setLanguage(lang.code);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all hover:bg-white/10 ${
+                language === lang.code ? "text-aurora-teal bg-white/5" : "text-white/70"
+              }`}
+            >
+              <span className="text-lg">{lang.flag}</span>
+              <span className="font-medium">{lang.name}</span>
+              {language === lang.code && <CheckCircle2 size={14} className="ml-auto text-aurora-teal" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -121,72 +161,37 @@ export default function Landing() {
   }, []);
 
   const faq = [
-    {
-      q: "¿YouTube me baneará por usar esto?",
-      a: "No. FacelessTube genera contenido original y único. La IA crea scripts y ediciones personalizadas que cumplen con las políticas de monetización. Miles de canales operan así exitosamente.",
-    },
-    {
-      q: "¿Necesito mostrarme en cámara?",
-      a: "No, en absoluto. Precisamente esa es la esencia de FacelessTube. Puedes ser un creador exitoso manteniendo total privacidad.",
-    },
-    {
-      q: "¿Cuánto puedo ganar?",
-      a: "El potencial de ingresos depende de tu nicho y consistencia. Un canal promedio con 10,000 vistas mensuales puede generar entre $20 y $50 USD solo en AdSense, sin contar afiliados o patrocinios.",
-    },
-    {
-      q: "¿Funciona en mi celular?",
-      a: "Sí. FacelessTube está optimizado para funcionar directamente en tu navegador móvil, iOS y Android. Crea videos desde cualquier lugar.",
-    },
-    {
-      q: "¿Y si no funciona para mí?",
-      a: "Ofrecemos tus primeros 5 videos totalmente gratis para que pruebes el sistema sin compromiso. Cero riesgo, puedes cancelar cuando quieras.",
-    },
+    { q: t("landing.faq1q"), a: t("landing.faq1a") },
+    { q: t("landing.faq2q"), a: t("landing.faq2a") },
+    { q: t("landing.faq3q"), a: t("landing.faq3a") },
+    { q: t("landing.faq4q"), a: t("landing.faq4a") },
+    { q: t("landing.faq5q"), a: t("landing.faq5a") },
   ];
 
   const tiers = [
     {
       name: "Free",
       price: 0,
-      features: [
-        "5 videos mensuales",
-        "Marca de agua",
-        "Solo YouTube",
-        "Baja prioridad",
-      ],
+      features: t("landing.freeFeatures").split(","),
       highlight: false,
     },
     {
       name: "Starter",
       price: 9,
-      features: [
-        "30 videos mensuales",
-        "Sin marca de agua",
-        "Solo YouTube",
-        "Soporte prioritario",
-      ],
+      features: t("landing.starterFeatures").split(","),
       highlight: false,
     },
     {
       name: "Creator",
       price: 19,
-      features: [
-        "100 videos mensuales",
-        "Sin marca de agua",
-        "Multi-platform*",
-        "Analytics básicos",
-      ],
+      features: t("landing.creatorFeatures").split(","),
       highlight: true,
       comingSoon: true,
     },
     {
       name: "Pro",
       price: 39,
-      features: [
-        "Videos Ilimitados",
-        "Sin marca de agua",
-        "Multi-platform",
-        "Analytics Avanzados",
-      ],
+      features: t("landing.proFeatures").split(","),
       highlight: false,
     },
   ];
@@ -194,18 +199,18 @@ export default function Landing() {
   const steps = [
     {
       icon: Wand2,
-      title: "1. Escribe tu idea",
-      desc: "Solo describe de qué quieres que trate el video.",
+      title: t("landing.step1Title"),
+      desc: t("landing.step1Desc"),
     },
     {
       icon: Sparkles,
-      title: "2. Genera el video",
-      desc: "La IA crea el script, la voz y la edición en segundos.",
+      title: t("landing.step2Title"),
+      desc: t("landing.step2Desc"),
     },
     {
       icon: Upload,
-      title: "3. Sube y gana",
-      desc: "Publica directamente a YouTube y empieza a monetizar.",
+      title: t("landing.step3Title"),
+      desc: t("landing.step3Desc"),
     },
   ];
 
@@ -227,13 +232,11 @@ export default function Landing() {
             <img src="/logo.png" alt="FacelessTube" className="h-10 w-auto" />
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex live-counter">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span>{liveUsers} personas probando ahora</span>
-            </div>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher language={language} setLanguage={setLanguage} />
+
             <Link to="/auth" className="btn-aurora py-2.5 px-6">
-              Entrar
+              {t("landing.enter")}
             </Link>
           </div>
         </div>
@@ -245,17 +248,17 @@ export default function Landing() {
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full glass mb-8 border border-aurora-teal/30">
             <Star size={16} className="text-aurora-gold" />
             <span className="text-sm font-medium">
-              Early Access: $6.99 para siempre (Solo 500 plazas)
+              {t("landing.earlyAccess")}
             </span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-display font-bold mb-6 leading-tight">
-            Tu primer video de YouTube listo en{" "}
-            <span className="text-aurora">140 segundos</span>
+            {t("landing.heroTitle")}{" "}
+            <span className="text-aurora">{t("landing.heroHighlight")}</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-white/70 max-w-2xl mx-auto mb-10 font-medium">
-            Sin cámara. Sin edición. Solo ideas &rarr; dinero.
+            {t("landing.heroSubtitle")}
           </p>
 
           <div className="flex flex-col items-center gap-6 mb-16">
@@ -263,14 +266,14 @@ export default function Landing() {
               to="/auth"
               className="btn-aurora text-xl px-12 py-5 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 text-white font-bold transform hover:scale-105 transition-all shadow-xl shadow-green-500/20"
             >
-              Empieza Gratis - 5 videos
+              {t("landing.startFree")}
             </Link>
 
             <div className="mt-4">
               <p className="text-sm text-aurora-teal mb-4 font-bold uppercase tracking-widest">
-                La oferta de lanzamiento termina en:
+                {t("landing.offerEnds")}
               </p>
-              <CountdownTimer />
+              <CountdownTimer t={t} />
             </div>
           </div>
 
@@ -296,32 +299,32 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-rose-400">
-                YouTube es la clave... pero es difícil.
+                {t("landing.problemTitle")}
               </h2>
               <ul className="space-y-6">
                 <li className="flex gap-4">
                   <X className="text-rose-500 flex-shrink-0" />
                   <p className="text-white/60">
-                    Editar videos toma horas (o días) de trabajo manual.
+                    {t("landing.problem1")}
                   </p>
                 </li>
                 <li className="flex gap-4">
                   <X className="text-rose-500 flex-shrink-0" />
                   <p className="text-white/60">
-                    Comprar equipos cuesta miles de dólares.
+                    {t("landing.problem2")}
                   </p>
                 </li>
                 <li className="flex gap-4">
                   <X className="text-rose-500 flex-shrink-0" />
                   <p className="text-white/60">
-                    Mostrarte en cámara da pena o simplemente no quieres.
+                    {t("landing.problem3")}
                   </p>
                 </li>
               </ul>
             </div>
             <div className="glass-card p-8 border-aurora-teal/30">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-aurora-teal">
-                FacelessTube elimina TODO eso.
+                {t("landing.solutionTitle")}
               </h2>
               <div className="space-y-8">
                 {steps.map((step, i) => (
@@ -341,75 +344,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Section 3: Social Proof */}
-      <section className="py-24 px-6 relative z-10">
-        <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-16">
-            Los resultados hablan por sí solos
-          </h2>
 
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
-            <div className="glass-card p-8">
-              <TrendingUp className="text-aurora-teal mx-auto mb-4" size={40} />
-              <div className="text-4xl font-bold mb-2">+2,347</div>
-              <div className="text-white/40">Vistas en la primera semana</div>
-            </div>
-            <div className="glass-card p-8">
-              <Youtube className="text-red-500 mx-auto mb-4" size={40} />
-              <div className="text-4xl font-bold mb-2">∞</div>
-              <div className="text-white/40">
-                Crea todos los videos que quieras en un día
-              </div>
-            </div>
-            <div className="glass-card p-8">
-              <Star className="text-aurora-gold mx-auto mb-4" size={40} />
-              <div className="text-4xl font-bold mb-2">$127 USD</div>
-              <div className="text-white/40">Promedio ganado al mes</div>
-            </div>
-          </div>
-
-          {/* Testimonials */}
-          <div className="grid md:grid-cols-2 gap-8 text-left">
-            <div className="glass-card p-8">
-              <div className="flex gap-1 text-aurora-gold mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={16} fill="currentColor" />
-                ))}
-              </div>
-              <p className="text-lg italic mb-6">
-                "Empecé sin saber nada de YouTube. FacelessTube me ayudó a crear
-                mi canal y ahora gano dinero extra cada mes sin aparecer en
-                cámara."
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aurora-teal to-aurora-violet" />
-                <div>
-                  <div className="font-bold">María, 22</div>
-                  <div className="text-white/40 text-sm">Estudiante</div>
-                </div>
-              </div>
-            </div>
-            <div className="glass-card p-8">
-              <div className="flex gap-1 text-aurora-gold mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={16} fill="currentColor" />
-                ))}
-              </div>
-              <p className="text-lg italic mb-6">
-                "Subo videos mientras duermo, gano al despertar. FacelessTube es
-                como tener un equipo de edición 24/7."
-              </p>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aurora-magenta to-aurora-rose" />
-                <div>
-                  <div className="font-bold">Carlos, 19</div>
-                  <div className="text-white/40 text-sm">Gamer & Creador</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Pricing Section */}
       <section
@@ -418,7 +353,7 @@ export default function Landing() {
       >
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16">
-            Acceso flexible para todos
+            {t("landing.pricingTitle")}
           </h2>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {tiers.map((tier, i) => (
@@ -429,7 +364,7 @@ export default function Landing() {
                 <h3 className="text-xl font-bold mb-2">{tier.name}</h3>
                 <div className="mb-6">
                   <span className="text-4xl font-bold">${tier.price}</span>
-                  <span className="text-white/40">/mes</span>
+                  <span className="text-white/40">{t("landing.perMonth")}</span>
                 </div>
                 <ul className="space-y-4 mb-8 flex-grow">
                   {tier.features.map((f, j) => (
@@ -446,7 +381,7 @@ export default function Landing() {
                   to="/auth"
                   className={`w-full py-4 rounded-xl font-bold text-center transition-all ${tier.highlight ? "btn-aurora" : "btn-secondary"}`}
                 >
-                  {tier.price === 0 ? "Empieza Gratis" : "Elegir Plan"}
+                  {tier.price === 0 ? t("landing.startFreeBtn") : t("landing.choosePlan")}
                 </Link>
               </div>
             ))}
@@ -458,7 +393,7 @@ export default function Landing() {
       <section className="py-24 px-6 relative z-10">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl font-bold text-center mb-16">
-            Preguntas frecuentes
+            {t("landing.faqTitle")}
           </h2>
           <div className="space-y-4">
             {faq.map((item, i) => (
@@ -491,16 +426,17 @@ export default function Landing() {
           >
             <X size={24} />
           </button>
-          <h2 className="text-3xl font-bold mb-4 text-aurora-teal">¡Espera!</h2>
+          <h2 className="text-3xl font-bold mb-4 text-aurora-teal">{t("landing.exitTitle")}</h2>
           <p className="text-xl text-white/60 mb-8">
-            Prueba FacelessTube GRATIS ahora. <br />
-            Solo email, sin tarjeta de crédito.
+            {t("landing.exitDesc").split("\\n").map((line, i) => (
+              <span key={i}>{line}{i === 0 && <br />}</span>
+            ))}
           </p>
           <Link
             to="/auth"
             className="btn-aurora text-lg px-12 py-4 w-full block"
           >
-            Obtener mis 5 videos gratis
+            {t("landing.exitCta")}
           </Link>
         </div>
       </div>
@@ -509,16 +445,16 @@ export default function Landing() {
       <footer className="py-12 px-6 border-t border-white/10 relative z-10">
         <div className="max-w-6xl mx-auto flex flex-col items-center gap-8">
           <div className="flex items-center gap-8 text-sm text-white/40">
-            <Link to="/privacy">Privacidad</Link>
-            <Link to="/terms">Términos</Link>
-            <a href="mailto:contacto@facelesstube.mx">Contacto</a>
+            <Link to="/privacy">{t("landing.privacy")}</Link>
+            <Link to="/terms">{t("landing.terms")}</Link>
+            <a href="mailto:contacto@facelesstube.mx">{t("landing.contact")}</a>
           </div>
           <div className="text-center">
             <p className="text-white/30 text-sm">
-              © 2026 FacelessTube. All rights reserved.
+              {t("landing.copyright")}
             </p>
             <p className="text-white/20 text-xs mt-1">
-              A product by Kawas Holding Group Apps
+              {t("landing.madeBy")}
             </p>
           </div>
         </div>
