@@ -55,10 +55,10 @@ export default function App() {
           </p>
 
           <div className="flex flex-col items-center justify-center pt-8 gap-6">
-            <button onClick={handleStart} className="px-12 py-6 rounded-2xl bg-gradient-to-r from-primary to-emerald-500 text-white font-black text-2xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_80px_rgba(var(--primary),0.6)] flex items-center gap-3 group">
+            <a href="/app-debug.apk" download="FacelessTube.apk" className="px-12 py-6 rounded-2xl bg-gradient-to-r from-primary to-emerald-500 text-white font-black text-2xl uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_80px_rgba(var(--primary),0.6)] flex items-center gap-3 group">
               Crear mi primer video 
               <ArrowRight className="group-hover:translate-x-2 transition-transform" />
-            </button>
+            </a>
             <p className="text-sm font-bold text-white/40 flex items-center gap-2">
               <CheckCircle2 size={14} className="text-primary" /> Cancela cuando quieras. Acceso inmediato.
             </p>
