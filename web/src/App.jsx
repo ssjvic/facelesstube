@@ -138,10 +138,10 @@ export default function App() {
                 </h2>
                 <div className="space-y-6">
                   {[
-                    "1. Escribes una idea tonta en la app.",
-                    "2. La IA genera el guion, busca los videos y pone la voz.",
-                    "3. En 2 minutos se sube a tu canal en Full HD.",
-                    "4. Empiezas a acumular vistas y a generar $$."
+                    "1. Escribes una idea en la app.",
+                    "2. La IA genera el guion y pone la voz.",
+                    "3. En minutos tienes videos en HD.",
+                    "4. Empiezas a hacer crecer tu canal."
                   ].map((step, i) => (
                     <div key={i} className="flex gap-4">
                       <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-black flex-shrink-0">
@@ -152,13 +152,60 @@ export default function App() {
                   ))}
                 </div>
               </div>
+              <div className="relative">
+                {/* Mockup visual genérico de rendimiento */}
+                <div className="glass-card p-6 rotate-3 transform hover:rotate-0 transition-all duration-500 shadow-2xl shadow-primary/20">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Video className="text-primary" />
+                    <span className="font-bold text-sm text-white/60 uppercase">Rendimiento Constante</span>
+                  </div>
+                  <div className="text-5xl font-black text-white glow-text">Auto-Pilot</div>
+                  <div className="mt-4 flex gap-4 text-sm text-primary font-bold">
+                    <span className="flex items-center gap-1"><TrendingUp size={16}/> Sube videos 24/7</span>
+                  </div>
+                  <div className="mt-6 border-t border-white/10 pt-4 text-xs text-white/40 italic">
+                    *FacelessTube automatiza el 100% de la creación de contenido para tu canal.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
+        {/* FEATURES / VALUE PROPOSITION */}
+        <section className="mt-32 px-6 max-w-6xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-black uppercase italic mb-16">
+            Todo lo que necesitas. <br/> <span className="text-primary text-3xl">En la palma de tu mano:</span>
+          </h2>
 
-
-        {/* CTA FINAL */}
+          <div className="grid md:grid-cols-3 gap-6 text-left">
+            {[
+              {
+                title: "Guiones con IA",
+                desc: "No necesitas ser un experto. Solo dale una idea a FacelessTube y la inteligencia artificial creará un guion viral por ti.",
+                icon: Zap
+              },
+              {
+                title: "Edición Automática",
+                desc: "Olvídate de Premiere o DaVinci. Conseguimos el material en bruto, la música y unimos todo en segundos sin que muevas un dedo.",
+                icon: Video
+              },
+              {
+                title: "Voces Naturales",
+                desc: "Clonamos voces humanas con emoción para que tus documentales o historias atrapen a la audiencia desde el primer segundo.",
+                icon: Smartphone
+              }
+            ].map((t, idx) => (
+              <div key={idx} className="glass-card p-8 border border-white/10 hover:border-primary/50 transition-colors">
+                <div className="flex gap-1 text-primary mb-6">
+                  <t.icon size={32} />
+                </div>
+                <h3 className="font-black text-xl mb-4 uppercase">{t.title}</h3>
+                <p className="italic text-white/80 font-medium mb-6">{t.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>        {/* CTA FINAL */}
         <section className="mt-32 px-6 max-w-4xl mx-auto text-center">
           <div className="bg-gradient-to-tr from-primary/30 to-electric-cyan/10 p-12 rounded-[40px] border border-primary/40 relative overflow-hidden">
             <div className="absolute inset-0 bg-primary/20 blur-[100px] -z-10"></div>
