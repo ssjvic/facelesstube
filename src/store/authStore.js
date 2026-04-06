@@ -37,7 +37,6 @@ const TIERS = {
       "100 videos/mes",
       "Sin marca de agua",
       "Hasta 10 min",
-      "Voces premium",
       "Soporte prioritario",
     ],
   },
@@ -52,7 +51,6 @@ const TIERS = {
       "Videos ilimitados",
       "Sin marca de agua",
       "Hasta 20 min",
-      "Todas las voces",
       "Soporte 24/7",
       "API access",
     ],
@@ -72,8 +70,9 @@ const createMockUser = () => ({
   createdAt: new Date().toISOString(),
 });
 
-// Guard flag to prevent checkAuth from racing with active logins
+// Guard flags to prevent checkAuth from racing with active logins/logouts
 let _loginInProgress = false;
+let _logoutInProgress = false;
 
 // Helper: build a user object from Supabase session + optional profile
 function buildUserFromSession(sessionUser, profile = null) {
@@ -204,9 +203,9 @@ export const useAuthStore = create(
 
       // Check if user is authenticated
       checkAuth: async () => {
-        // CRITICAL: Don't run checkAuth while a login is in progress
-        if (_loginInProgress) {
-          console.log("⏳ checkAuth skipped: login in progress");
+        // CRITICAL: Don't run checkAuth while a login or logout is in progress
+        if (_loginInProgress || _logoutInProgress) {
+          console.log("⏳ checkAuth skipped:", _loginInProgress ? "login" : "logout", "in progress");
           set({ loading: false });
           return;
         }
@@ -551,13 +550,67 @@ export const useAuthStore = create(
         }
       },
 
-      // Logout
+      // Logout — fully clear ALL sessions and persisted state so account switching works
       logout: async () => {
-        if (isSupabaseConfigured()) {
-          await supabase.auth.signOut();
+        _logoutInProgress = true;
+        console.log("🚪 Logout: starting...");
+
+        // 1. Clear zustand state FIRST so UI shows logged-out immediately
+        set({ user: null, isDemo: false, loading: false, error: null });
+
+        // 2. Clear ALL local persisted auth state
+        localStorage.removeItem("facelesstube_user");      // manual backup
+        localStorage.removeItem("facelesstube-auth");       // zustand persist store
+        // Clear Supabase's own local storage tokens
+        const keys = Object.keys(localStorage);
+        for (const key of keys) {
+          if (key.startsWith("sb-") && (key.endsWith("-auth-token") || key.includes("supabase"))) {
+            localStorage.removeItem(key);
+          }
         }
-        localStorage.removeItem("facelesstube_user");
-        set({ user: null, isDemo: false });
+        // Also clear sessionStorage (some Supabase versions use it)
+        try {
+          const sessionKeys = Object.keys(sessionStorage);
+          for (const key of sessionKeys) {
+            if (key.startsWith("sb-") || key.includes("supabase")) {
+              sessionStorage.removeItem(key);
+            }
+          }
+        } catch (e) { /* ignore */ }
+
+        // 3. Sign out from Supabase (server-side)
+        if (isSupabaseConfigured()) {
+          try {
+            await supabase.auth.signOut({ scope: 'global' });
+          } catch (e) {
+            console.warn("signOut error (non-fatal):", e);
+          }
+        }
+
+        // 4. Also sign out from Firebase/Google if on native
+        try {
+          const isCapacitor =
+            typeof window !== "undefined" &&
+            window.Capacitor &&
+            window.Capacitor.isNativePlatform &&
+            window.Capacitor.isNativePlatform();
+          if (isCapacitor) {
+            const { FirebaseAuthentication } = await import("@capacitor-firebase/authentication");
+            await FirebaseAuthentication.signOut();
+            console.log("🚪 Firebase signOut done");
+          }
+        } catch (e) {
+          console.warn("Firebase signOut error (non-fatal):", e);
+        }
+
+        console.log("🚪 Logout: complete");
+
+        // 5. Keep the flag active for a short time to block any
+        //    onAuthStateChange SIGNED_IN events that fire in the aftermath
+        setTimeout(() => {
+          _logoutInProgress = false;
+          console.log("🚪 Logout: guard released");
+        }, 2000);
       },
 
       // Update user data
@@ -762,9 +815,9 @@ if (isSupabaseConfigured()) {
   supabase.auth.onAuthStateChange((event, session) => {
     console.log("🔔 Auth state changed:", event);
 
-    // CRITICAL: Never interfere when login functions are actively setting state
-    if (_loginInProgress) {
-      console.log("⏳ onAuthStateChange skipped: login in progress");
+    // CRITICAL: Never interfere when login or logout functions are actively setting state
+    if (_loginInProgress || _logoutInProgress) {
+      console.log("⏳ onAuthStateChange skipped:", _loginInProgress ? "login" : "logout", "in progress");
       return;
     }
 

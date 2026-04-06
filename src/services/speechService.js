@@ -46,11 +46,9 @@ export const getRecommendedVoices = async (langCode) => {
     // Prioritize Google/Microsoft voices for quality
     const sorted = voices.sort((a, b) => {
         const aScore = (a.name.includes('Google') ? 10 : 0) +
-            (a.name.includes('Microsoft') ? 8 : 0) +
-            (a.name.includes('Premium') ? 5 : 0)
+            (a.name.includes('Microsoft') ? 8 : 0)
         const bScore = (b.name.includes('Google') ? 10 : 0) +
-            (b.name.includes('Microsoft') ? 8 : 0) +
-            (b.name.includes('Premium') ? 5 : 0)
+            (b.name.includes('Microsoft') ? 8 : 0)
         return bScore - aScore
     })
 

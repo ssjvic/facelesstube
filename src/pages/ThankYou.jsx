@@ -14,6 +14,8 @@ import {
   Video,
   Mic,
   Palette,
+  Timer,
+  ArrowLeft,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
@@ -107,7 +109,7 @@ function ConfettiCanvas() {
           ctx.beginPath();
           for (let i = 0; i < 5; i++) {
             const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-            const r = i === 0 ? p.w / 2 : p.w / 2;
+            const r = p.w / 2;
             ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
           }
           ctx.closePath();
@@ -159,17 +161,63 @@ function FloatingEmoji({ emoji, delay, duration, left }) {
   );
 }
 
+// ============ CIRCULAR COUNTDOWN RING ============
+function CountdownRing({ seconds, total }) {
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const progress = (seconds / total) * circumference;
+
+  return (
+    <svg width="44" height="44" className="inline-block -rotate-90">
+      {/* Background ring */}
+      <circle
+        cx="22" cy="22" r={radius}
+        fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth="3"
+      />
+      {/* Progress ring */}
+      <circle
+        cx="22" cy="22" r={radius}
+        fill="none"
+        stroke="url(#countdownGrad)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={circumference - progress}
+        style={{ transition: "stroke-dashoffset 1s linear" }}
+      />
+      <defs>
+        <linearGradient id="countdownGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#00d4aa" />
+          <stop offset="100%" stopColor="#00e5ff" />
+        </linearGradient>
+      </defs>
+      {/* Center text */}
+      <text
+        x="22" y="22"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fill="rgba(255,255,255,0.7)"
+        fontSize="13"
+        fontWeight="700"
+        style={{ transform: "rotate(90deg)", transformOrigin: "22px 22px" }}
+      >
+        {seconds}
+      </text>
+    </svg>
+  );
+}
+
 // ============ TIER CONFIGS ============
 const TIER_CELEBRATION = {
   starter: {
     icon: Sparkles,
     title: "¡Bienvenido al plan Starter! ⚡",
-    titleEn: "Welcome to Starter! ⚡",
     subtitle: "Tu viaje como creador comienza ahora",
-    subtitleEn: "Your creator journey begins now",
     color: "from-blue-400 to-cyan-400",
     glowColor: "rgba(59, 130, 246, 0.3)",
-    badge: "badge-starter",
+    accentHex: "#3b82f6",
     perks: [
       { icon: Video, text: "30 videos al mes" },
       { icon: Zap, text: "Sin marca de agua" },
@@ -179,27 +227,36 @@ const TIER_CELEBRATION = {
   creator: {
     icon: Crown,
     title: "¡Eres un Creator ahora! 👑",
-    titleEn: "You're a Creator now! 👑",
     subtitle: "Desbloquea tu potencial creativo sin límites",
-    subtitleEn: "Unleash your creative potential",
     color: "from-purple-400 via-violet-400 to-fuchsia-400",
     glowColor: "rgba(124, 58, 237, 0.3)",
-    badge: "badge-pro",
+    accentHex: "#7c3aed",
     perks: [
       { icon: Video, text: "100 videos al mes" },
-      { icon: Mic, text: "Voces premium" },
+      { icon: Mic, text: "Narración Edge-TTS" },
       { icon: Palette, text: "Hasta 10 min de duración" },
     ],
   },
   pro: {
     icon: Infinity,
     title: "¡Plan Pro Ilimitado! 🚀",
-    titleEn: "Unlimited Pro Plan! 🚀",
     subtitle: "Todo el poder de FacelessTube es tuyo",
-    subtitleEn: "All the power of FacelessTube is yours",
     color: "from-emerald-400 via-teal-400 to-cyan-400",
     glowColor: "rgba(0, 212, 170, 0.3)",
-    badge: "badge-unlimited",
+    accentHex: "#00d4aa",
+    perks: [
+      { icon: Infinity, text: "Videos ilimitados" },
+      { icon: Rocket, text: "Hasta 20 min de duración" },
+      { icon: Star, text: "Soporte 24/7 + API" },
+    ],
+  },
+  unlimited: {
+    icon: Infinity,
+    title: "¡Plan Unlimited activado! 🚀",
+    subtitle: "El máximo poder de FacelessTube en tus manos",
+    color: "from-amber-400 via-orange-400 to-rose-400",
+    glowColor: "rgba(251, 191, 36, 0.3)",
+    accentHex: "#fbbf24",
     perks: [
       { icon: Infinity, text: "Videos ilimitados" },
       { icon: Rocket, text: "Hasta 20 min de duración" },
@@ -211,6 +268,8 @@ const TIER_CELEBRATION = {
 const DEFAULT_CELEBRATION = TIER_CELEBRATION.creator;
 
 // ============ MAIN COMPONENT ============
+const AUTO_REDIRECT_SECONDS = 10;
+
 export default function ThankYou() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -219,20 +278,36 @@ export default function ThankYou() {
   const [showPerks, setShowPerks] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const [pulseHeart, setPulseHeart] = useState(false);
+  const [countdown, setCountdown] = useState(AUTO_REDIRECT_SECONDS);
+  const [redirectPaused, setRedirectPaused] = useState(false);
+  const [showCheckmark, setShowCheckmark] = useState(false);
 
   // Detect tier from query param or user state
   const tierParam = searchParams.get("tier") || user?.tier || "creator";
   const celebration = TIER_CELEBRATION[tierParam] || DEFAULT_CELEBRATION;
   const TierIcon = celebration.icon;
 
+  // Handle back button (browser / Android hardware)
+  useEffect(() => {
+    const handlePopState = (e) => {
+      e.preventDefault();
+      navigate("/app", { replace: true });
+    };
+    // Push dummy state so back button triggers popstate instead of leaving
+    window.history.pushState({ thankyou: true }, "");
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [navigate]);
+
   useEffect(() => {
     // Refresh auth to get updated tier
     checkAuth();
 
     // Staggered reveal animations
-    const t1 = setTimeout(() => setShowContent(true), 400);
-    const t2 = setTimeout(() => setShowPerks(true), 1200);
-    const t3 = setTimeout(() => setShowButton(true), 2000);
+    const t0 = setTimeout(() => setShowCheckmark(true), 200);
+    const t1 = setTimeout(() => setShowContent(true), 600);
+    const t2 = setTimeout(() => setShowPerks(true), 1400);
+    const t3 = setTimeout(() => setShowButton(true), 2200);
 
     // Heart pulse every few seconds
     const heartInterval = setInterval(() => {
@@ -241,6 +316,7 @@ export default function ThankYou() {
     }, 3000);
 
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
@@ -248,29 +324,52 @@ export default function ThankYou() {
     };
   }, [checkAuth]);
 
+  // Auto-redirect countdown
+  useEffect(() => {
+    if (redirectPaused) return;
+    if (countdown <= 0) {
+      navigate("/app", { replace: true });
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, redirectPaused, navigate]);
+
+  const handleGoToDashboard = () => {
+    navigate("/app", { replace: true });
+  };
+
+  const handlePauseRedirect = () => {
+    setRedirectPaused(true);
+  };
+
   return (
     <div className="min-h-screen bg-cosmic-950 relative overflow-hidden">
       {/* Confetti */}
       <ConfettiCanvas />
 
-      {/* Aurora background glow */}
+      {/* Aurora background glow — multi-layered */}
       <div
         className="fixed inset-0 pointer-events-none"
         style={{
           background: `
             radial-gradient(ellipse at 50% 0%, ${celebration.glowColor} 0%, transparent 50%),
             radial-gradient(ellipse at 20% 80%, rgba(124, 58, 237, 0.15) 0%, transparent 40%),
-            radial-gradient(ellipse at 80% 80%, rgba(232, 121, 249, 0.1) 0%, transparent 40%)
+            radial-gradient(ellipse at 80% 80%, rgba(232, 121, 249, 0.1) 0%, transparent 40%),
+            radial-gradient(ellipse at 50% 50%, rgba(0, 212, 170, 0.05) 0%, transparent 60%)
           `,
         }}
       />
 
-      {/* Animated rings behind the icon */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ marginTop: "-120px" }}>
-        <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full border border-white/[0.03] animate-ping" style={{ animationDuration: "3s" }} />
+      {/* Animated pulse rings behind the icon */}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ marginTop: "-140px" }}>
+        <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] rounded-full border border-white/[0.03]" style={{ animation: "ringExpand 3s ease-out infinite" }} />
       </div>
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ marginTop: "-120px" }}>
-        <div className="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] rounded-full border border-white/[0.05] animate-ping" style={{ animationDuration: "2.5s", animationDelay: "0.5s" }} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ marginTop: "-140px" }}>
+        <div className="w-[200px] h-[200px] sm:w-[280px] sm:h-[280px] rounded-full border border-white/[0.05]" style={{ animation: "ringExpand 3s ease-out 0.8s infinite" }} />
+      </div>
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ marginTop: "-140px" }}>
+        <div className="w-[120px] h-[120px] sm:w-[180px] sm:h-[180px] rounded-full border border-white/[0.06]" style={{ animation: "ringExpand 3s ease-out 1.6s infinite" }} />
       </div>
 
       {/* Floating emojis */}
@@ -287,14 +386,40 @@ export default function ThankYou() {
         <FloatingEmoji emoji="👑" delay={1.8} duration={5.5} left={35} />
       </div>
 
+      {/* Back button (top-left) */}
+      <button
+        onClick={handleGoToDashboard}
+        className="fixed top-4 left-4 z-[60] p-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm text-white/60 hover:text-white hover:bg-white/10 transition-all"
+        aria-label="Volver al dashboard"
+      >
+        <ArrowLeft size={20} />
+      </button>
+
       {/* Main content */}
       <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8">
         <div className="max-w-lg w-full text-center">
 
+          {/* Success checkmark animation */}
+          <div
+            className={`
+              mx-auto mb-4 w-16 h-16 sm:w-20 sm:h-20 rounded-full
+              flex items-center justify-center
+              transition-all duration-500
+              ${showCheckmark ? "opacity-100 scale-100" : "opacity-0 scale-0"}
+            `}
+            style={{
+              background: `linear-gradient(135deg, ${celebration.accentHex}22, ${celebration.accentHex}44)`,
+              border: `2px solid ${celebration.accentHex}66`,
+              animation: showCheckmark ? "checkBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both" : "none",
+            }}
+          >
+            <CheckCircle size={36} className="text-emerald-400" style={{ animation: showCheckmark ? "drawCheck 0.4s ease-out 0.5s both" : "none" }} />
+          </div>
+
           {/* Tier icon with glow */}
           <div
             className={`
-              mx-auto mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full 
+              mx-auto mb-6 w-24 h-24 sm:w-28 sm:h-28 rounded-full
               bg-gradient-to-br ${celebration.color}
               flex items-center justify-center
               transition-all duration-700
@@ -302,7 +427,7 @@ export default function ThankYou() {
             `}
             style={{
               boxShadow: `0 0 60px ${celebration.glowColor}, 0 0 120px ${celebration.glowColor}`,
-              animation: "pulse 2s ease-in-out infinite",
+              animation: showContent ? "iconFloat 3s ease-in-out infinite" : "none",
             }}
           >
             <TierIcon size={48} className="text-white drop-shadow-lg" />
@@ -370,11 +495,11 @@ export default function ThankYou() {
                   key={i}
                   className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/10 transition-all"
                   style={{
-                    animationDelay: `${1.4 + i * 0.2}s`,
-                    animation: showPerks ? `slideInLeft 0.5s ease-out ${i * 0.15}s both` : "none",
+                    animation: showPerks ? `slideInPerk 0.5s ease-out ${i * 0.15}s both` : "none",
                   }}
                 >
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${celebration.color} bg-opacity-20 flex items-center justify-center flex-shrink-0`}
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                     style={{ background: `linear-gradient(135deg, ${celebration.glowColor}, rgba(255,255,255,0.05))` }}
                   >
                     <perk.icon size={18} className="text-white" />
@@ -416,7 +541,7 @@ export default function ThankYou() {
             `}
           >
             <button
-              onClick={() => navigate("/app")}
+              onClick={handleGoToDashboard}
               className="btn-aurora text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-5 inline-flex items-center gap-3 group"
               id="thankyou-create-btn"
             >
@@ -424,6 +549,26 @@ export default function ThankYou() {
               ¡Crear mi primer video!
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
+
+            {/* Auto-redirect countdown */}
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <CountdownRing seconds={redirectPaused ? countdown : countdown} total={AUTO_REDIRECT_SECONDS} />
+              <span className="text-white/40 text-xs">
+                {redirectPaused ? (
+                  "Redirección pausada"
+                ) : (
+                  <>Regresando al dashboard en <span className="text-white/70 font-semibold">{countdown}s</span></>
+                )}
+              </span>
+              {!redirectPaused && (
+                <button
+                  onClick={handlePauseRedirect}
+                  className="text-white/30 hover:text-white/60 text-[10px] underline underline-offset-2 transition-colors"
+                >
+                  pausar
+                </button>
+              )}
+            </div>
 
             <div className="mt-4">
               <button
@@ -456,22 +601,56 @@ export default function ThankYou() {
             opacity: 0;
           }
         }
-        @keyframes slideInLeft {
+        @keyframes slideInPerk {
           from {
             opacity: 0;
-            transform: translateX(-20px);
+            transform: translateX(-30px) scale(0.9);
           }
           to {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(0) scale(1);
           }
         }
-        @keyframes pulse {
+        @keyframes iconFloat {
           0%, 100% {
-            transform: scale(1);
+            transform: scale(1) translateY(0);
           }
           50% {
-            transform: scale(1.05);
+            transform: scale(1.06) translateY(-6px);
+          }
+        }
+        @keyframes ringExpand {
+          0% {
+            transform: scale(0.6);
+            opacity: 0.4;
+          }
+          100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+        @keyframes checkBounce {
+          0% {
+            transform: scale(0);
+            opacity: 0;
+          }
+          60% {
+            transform: scale(1.2);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes drawCheck {
+          from {
+            opacity: 0;
+            transform: scale(0.5) rotate(-10deg);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
           }
         }
       `}</style>

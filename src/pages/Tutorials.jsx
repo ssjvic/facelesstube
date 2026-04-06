@@ -28,6 +28,7 @@ export default function Tutorials() {
       category: "Estrategia",
       thumbnail:
         "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=400&h=225&auto=format&fit=crop",
+      youtubeUrl: "https://www.youtube.com/results?search_query=youtube+sin+mostrar+rostro+faceless+channel",
     },
     {
       title: "Configura FacelessTube para máxima calidad",
@@ -36,6 +37,7 @@ export default function Tutorials() {
       category: "Tutorial Técnico",
       thumbnail:
         "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=400&h=225&auto=format&fit=crop",
+      youtubeUrl: "https://www.youtube.com/results?search_query=faceless+youtube+channel+tutorial+automatizado",
     },
     {
       title: "Técnicas de Narrativa para Retención (Watch Time)",
@@ -44,6 +46,7 @@ export default function Tutorials() {
       category: "Contenido",
       thumbnail:
         "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=400&h=225&auto=format&fit=crop",
+      youtubeUrl: "https://www.youtube.com/results?search_query=aumentar+watch+time+youtube+narracion+retencion",
     },
     {
       title: "Cómo monetizar tu canal en tiempo récord",
@@ -52,8 +55,15 @@ export default function Tutorials() {
       category: "Dinero",
       thumbnail:
         "https://images.unsplash.com/photo-1621643135540-309d437021e1?q=80&w=400&h=225&auto=format&fit=crop",
+      youtubeUrl: "https://www.youtube.com/results?search_query=monetizar+canal+youtube+rapido+adsense",
     },
   ];
+
+  // Open YouTube video — works on Android (Capacitor) and web
+  const openYoutube = (url) => {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const niches = [
     {
@@ -141,7 +151,7 @@ export default function Tutorials() {
               {isFreeUser && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold">
                   <Lock size={12} />
-                  Premium
+                  Pro
                 </span>
               )}
             </div>
@@ -150,26 +160,30 @@ export default function Tutorials() {
               {tutorials.map((video, i) => (
                 <div
                   key={i}
-                  className="glass-card group cursor-pointer overflow-hidden p-0 relative"
+                  className="glass-card group overflow-hidden p-0 relative flex flex-col"
                 >
-                  <div className="relative aspect-video">
+                  {/* Thumbnail — clickable for Pro users */}
+                  <div
+                    className="relative aspect-video cursor-pointer"
+                    onClick={() => !isFreeUser && openYoutube(video.youtubeUrl)}
+                  >
                     {isFreeUser ? (
                       /* Blurred thumbnail for free users */
                       <div className="w-full h-full relative">
                         <img
                           src={video.thumbnail}
-                          alt="Tutorial Premium"
+                          alt="Tutorial Pro"
                           className="w-full h-full object-cover blur-md scale-110"
                         />
                         <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center gap-2">
                           <Lock size={24} className="text-amber-400" />
                           <span className="text-[10px] text-amber-400 font-bold uppercase">
-                            Premium
+                            Pro
                           </span>
                         </div>
                       </div>
                     ) : (
-                      /* Full thumbnail for premium users */
+                      /* Full thumbnail for paid users — hover shows play button */
                       <>
                         <img
                           src={video.thumbnail}
@@ -177,8 +191,8 @@ export default function Tutorials() {
                           className="w-full h-full object-cover transition-transform group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="w-12 h-12 rounded-full bg-aurora-teal flex items-center justify-center">
-                            <PlayCircle className="text-dark-900" />
+                          <div className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center shadow-lg shadow-red-600/40">
+                            <Youtube size={22} className="text-white" />
                           </div>
                         </div>
                       </>
@@ -187,8 +201,10 @@ export default function Tutorials() {
                       {video.duration}
                     </span>
                   </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
+
+                  {/* Card body */}
+                  <div className="p-3 flex flex-col flex-1">
+                    <div className="flex items-center gap-2 mb-1.5">
                       <span className="text-[10px] uppercase font-bold text-aurora-teal">
                         {video.category}
                       </span>
@@ -197,13 +213,23 @@ export default function Tutorials() {
                         {video.views} vistas
                       </span>
                     </div>
-                    <h3 className="font-semibold text-sm line-clamp-2 leading-tight group-hover:text-aurora-teal transition-colors">
-                      {isFreeUser ? "🔒 Contenido Premium" : video.title}
+                    <h3 className="font-semibold text-sm line-clamp-2 leading-tight mb-3 flex-1">
+                      {isFreeUser ? "🔒 Contenido Pro" : video.title}
                     </h3>
+
+                    {/* Ver en YouTube button — available for ALL users */}
+                    <button
+                      onClick={() => openYoutube(video.youtubeUrl)}
+                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-red-600/15 border border-red-600/30 text-red-400 hover:bg-red-600/25 hover:text-red-300 transition-all text-[11px] font-semibold"
+                    >
+                      <Youtube size={13} />
+                      Ver en YouTube →
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
+
           </div>
 
           {/* Niche Ideas Section */}

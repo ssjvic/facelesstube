@@ -1,10 +1,12 @@
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { useTranslation } from "../store/i18nStore";
 import { useState, useEffect } from "react";
 
 export default function Auth() {
   const { user, loginWithGoogle, error, loading } = useAuthStore();
+  const { t } = useTranslation();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
 
@@ -38,7 +40,7 @@ export default function Auth() {
           className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 text-sm"
         >
           <ArrowLeft size={16} />
-          <span>Volver</span>
+          <span>{t("auth.back")}</span>
         </Link>
 
         {/* Logo */}
@@ -48,7 +50,7 @@ export default function Auth() {
           </div>
           <h1 className="text-2xl font-display font-bold">FacelessTube</h1>
           <p className="text-white/50 text-sm mt-1">
-            Inicia sesión para continuar
+            {t("auth.loginSubtitle")}
           </p>
         </div>
 
@@ -87,21 +89,20 @@ export default function Auth() {
               />
             </svg>
           )}
-          {isLoggingIn ? "Conectando..." : "Continuar con Google"}
+          {isLoggingIn ? t("auth.connecting") : t("auth.google")}
         </button>
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-3">
           <div className="flex-1 h-px bg-white/10"></div>
-          <span className="text-white/30 text-xs">SEGURO Y RÁPIDO</span>
+          <span className="text-white/30 text-xs">{t("auth.secureAndFast")}</span>
           <div className="flex-1 h-px bg-white/10"></div>
         </div>
 
         {/* Info */}
         <div className="text-center space-y-3">
           <p className="text-white/40 text-xs">
-            Al continuar, aceptas nuestros términos de servicio y política de
-            privacidad.
+            {t("auth.termsNotice")}
           </p>
           <div className="flex items-center justify-center gap-4 text-white/30 text-xs">
             <div className="flex items-center gap-1">
@@ -116,7 +117,7 @@ export default function Auth() {
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Cifrado SSL
+              {t("auth.sslEncrypted")}
             </div>
             <div className="flex items-center gap-1">
               <svg
@@ -129,7 +130,7 @@ export default function Auth() {
               >
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              Datos protegidos
+              {t("auth.dataProtected")}
             </div>
           </div>
         </div>

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { createPortalSession } from "../config/stripe";
 import {
   User,
   Coins,
@@ -22,6 +21,10 @@ import { useAuthStore } from "../store/authStore";
 import { useTranslation } from "../store/i18nStore";
 import { toast } from "../store/toastStore";
 import { signInWithGoogle } from "../services/googleAuth";
+import { createPortalSession } from "../config/stripe";
+
+// Detect billing mode at build time
+const isPlayStoreBuild = import.meta.env.VITE_BILLING_MODE === "playstore";
 
 // Mock transactions
 const mockTransactions = [
@@ -64,7 +67,7 @@ const PROMO_CODES = {
     type: "upgrade",
     durationDays: 30,
     message:
-      "🎉 ¡Plan Creator activado por 30 días! 100 videos/mes + voces premium.",
+      "🎉 ¡Plan Creator activado por 30 días! 100 videos/mes sin marca de agua.",
   },
   SUPERTESTERS: {
     tier: "unlimited",
@@ -72,6 +75,13 @@ const PROMO_CODES = {
     durationDays: 30,
     message:
       "🚀 ¡Plan Pro activado por 30 días! Videos ilimitados + todas las funciones.",
+  },
+  SUPERTESTER: {
+    tier: "pro",
+    type: "upgrade",
+    durationDays: 30,
+    message:
+      "🎉 ¡Plan Pro activado por 30 días! 100 videos/mes sin marca de agua + soporte prioritario.",
   },
 };
 
@@ -102,7 +112,7 @@ export default function Account() {
           localStorage.removeItem("facelesstube_promo_expires");
           localStorage.removeItem("facelesstube_promo_code");
           toast.info(
-            "Tu periodo de prueba ha terminado. Actualiza a premium para seguir disfrutando.",
+            "Tu periodo de prueba ha terminado. Mejora tu plan para seguir disfrutando.",
           );
         }
       }
@@ -110,14 +120,27 @@ export default function Account() {
     checkPromoExpiry();
   });
 
-  // Handle manage subscription (Stripe Customer Portal)
+  // Handle manage subscription (Stripe portal on web, Google Play on Android)
   const handleManageSubscription = async () => {
     if (!user?.id) return;
     setIsManagingSubscription(true);
     try {
-      const result = await createPortalSession(user.id);
-      if (!result.success && result.error) {
-        toast.error(result.error);
+      if (isPlayStoreBuild) {
+        // Open Google Play subscriptions page
+        const playUrl = "https://play.google.com/store/account/subscriptions";
+        if (window.Capacitor?.Plugins?.Browser) {
+          await window.Capacitor.Plugins.Browser.open({ url: playUrl });
+        } else {
+          window.open(playUrl, "_blank");
+        }
+      } else if (createPortalSession) {
+        // Stripe Customer Portal (web only)
+        const result = await createPortalSession(user.id);
+        if (!result.success && result.error) {
+          toast.error(result.error);
+        }
+      } else {
+        toast.error("El portal de suscripción no está disponible.");
       }
     } catch (e) {
       toast.error("No se pudo abrir el portal de suscripción.");
@@ -255,9 +278,9 @@ export default function Account() {
       pt: "Comprar créditos",
     },
     creditsTip: {
-      es: "Los créditos se usan solo para herramientas premium (ElevenLabs, D-ID, etc). La generación básica es",
-      en: "Credits are only used for premium tools (ElevenLabs, D-ID, etc). Basic generation is",
-      pt: "Os créditos são usados apenas para ferramentas premium (ElevenLabs, D-ID, etc). A geração básica é",
+      es: "Los créditos se usan solo para herramientas avanzadas (ElevenLabs, D-ID, etc). La generación básica es",
+      en: "Credits are only used for advanced tools (ElevenLabs, D-ID, etc). Basic generation is",
+      pt: "Os créditos são usados apenas para ferramentas avançadas (ElevenLabs, D-ID, etc). A geração básica é",
     },
     free: { es: "gratis", en: "free", pt: "grátis" },
     channelConnected: {

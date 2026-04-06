@@ -20,14 +20,17 @@ export const TIER_PRODUCTS = {
   starter: {
     monthly: "starter_monthly",
     yearly: "starter_yearly",
+    annual: "starter_yearly", // alias — Premium.jsx passes "annual"
   },
   creator: {
     monthly: "pro_monthly",
     yearly: "pro_yearly",
+    annual: "pro_yearly",
   },
   pro: {
     monthly: "unlimited_monthly",
     yearly: "unlimited_yearly",
+    annual: "unlimited_yearly",
   },
 };
 

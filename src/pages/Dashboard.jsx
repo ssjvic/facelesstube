@@ -302,21 +302,21 @@ export default function Dashboard() {
 
     // Creator tips — rotate throughout the entire process
     const creatorTips = [
-      "💡 Tip: Escoge un nicho y especialízate en él",
-      "🔥 Tip: La constancia es la clave del éxito en YouTube",
-      "📈 Tip: Publica al menos 3 videos por semana",
-      "💰 Tip: La constancia te llevará a vivir de tus videos",
-      "🎨 Tip: Un buen thumbnail vale más que mil palabras",
-      "📱 Tip: Los Shorts son la forma más rápida de crecer",
-      "🧠 Tip: Estudia a los creadores que admiras",
-      "🌟 Tip: Tu primer video no será perfecto, ¡y está bien!",
-      "🎬 Tip: Cuenta historias, no solo des información",
-      "💪 Tip: Cada video que subes es un paso más cerca del éxito",
-      "🌱 Tip: Al principio es lento, pero cada video suma",
-      "🏆 Tip: Celebra cada view, cada suscriptor cuenta",
-      "😊 Tip: Disfruta el proceso, el éxito viene con el tiempo",
-      "🚀 Tip: Los canales más grandes empezaron desde cero",
-      "❤️ Tip: No te compares con otros, cada canal crece diferente",
+      t("dashboard.tip1"),
+      t("dashboard.tip2"),
+      t("dashboard.tip3"),
+      t("dashboard.tip4"),
+      t("dashboard.tip5"),
+      t("dashboard.tip6"),
+      t("dashboard.tip7"),
+      t("dashboard.tip8"),
+      t("dashboard.tip9"),
+      t("dashboard.tip10"),
+      t("dashboard.tip11"),
+      t("dashboard.tip12"),
+      t("dashboard.tip13"),
+      t("dashboard.tip14"),
+      t("dashboard.tip15"),
     ];
     let tipIdx = Math.floor(Math.random() * creatorTips.length);
 
@@ -329,33 +329,49 @@ export default function Dashboard() {
 
     try {
       // === Phase 1: Wake up server (if cold start) ===
-      await smoothProgress(5, "🔌 Conectando con servidor...", 1000);
+      await smoothProgress(5, `🔌 ${t("dashboard.connecting")}`, 1000);
 
       try {
         const wakeUp = await fetch(`${backendUrl}/health`, {
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(20000),
         });
-        if (!wakeUp.ok) throw new Error("Servidor no disponible");
+        if (!wakeUp.ok) throw new Error(t("dashboard.serverUnavailable"));
       } catch (e) {
-        // Server might be cold-starting, give it more time
+        // Server might be cold-starting on Render.com (free tier sleeps after 15min)
+        // Give it up to 2 minutes to wake up — show clear message to user
         await smoothProgress(
           8,
-          "⏳ Servidor despertando... (puede tomar ~30s)",
+          `⏳ ${t("dashboard.serverWaking")}`,
           2000,
         );
-        try {
-          await fetch(`${backendUrl}/health`, {
-            signal: AbortSignal.timeout(60000),
-          });
-        } catch (e2) {
+        let wakeSuccess = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const retry = await fetch(`${backendUrl}/health`, {
+              signal: AbortSignal.timeout(40000),
+            });
+            if (retry.ok) {
+              wakeSuccess = true;
+              break;
+            }
+          } catch (retryErr) {
+            // still waking up
+            await smoothProgress(
+              9 + attempt,
+              `⏳ Servidor despertando... (intento ${attempt + 1}/3)`,
+              1000,
+            );
+          }
+        }
+        if (!wakeSuccess) {
           throw new Error(
-            "No se puede conectar al servidor. El servidor puede estar reiniciándose. Intenta de nuevo en 1 minuto.",
+            t("dashboard.connectionError"),
           );
         }
       }
 
       // === Phase 2: Generate script with AI (5% → 25%) ===
-      startSlowProgress(8, 24, "🧠 Generando guión con IA...", 30000);
+      startSlowProgress(8, 24, `🧠 ${t("dashboard.generatingScript")}`, 30000);
 
       let scriptData;
       const durationSec = videoDuration * 60; // Convert minutes to seconds
@@ -462,10 +478,10 @@ export default function Dashboard() {
         scriptData.description || scriptData.descripcion || "",
       );
 
-      await smoothProgress(25, "✅ Guión generado", 800);
+      await smoothProgress(25, `✅ ${t("dashboard.scriptReady")}`, 800);
 
       // === Phase 3: Get background photos/video (25% → 35%) ===
-      startSlowProgress(25, 34, "📸 Buscando fondos para tu video...", 10000);
+      startSlowProgress(25, 34, `📸 ${t("dashboard.searchingBg")}`, 10000);
 
       // For user library videos, use the stored data URL
       let backgroundVideoData = null;
@@ -534,10 +550,10 @@ export default function Dashboard() {
       stopSlowProgress();
       const bgStatus =
         photoUrls.length > 0
-          ? `✅ ${photoUrls.length} fotos de fondo listas`
+          ? `✅ ${t("dashboard.photosReady", { count: photoUrls.length })}`
           : backgroundUrl
-            ? "✅ Estilo visual listo"
-            : "🎨 Se usará fondo animado";
+            ? `✅ ${t("dashboard.visualReady")}`
+            : `🎨 ${t("dashboard.gradientBg")}`;
       await smoothProgress(35, bgStatus, 500);
 
       // === Phase 4: Generate TTS audio on backend (35% → 55%) ===
@@ -552,7 +568,7 @@ export default function Dashboard() {
       const voiceUuid =
         voiceMap[`${videoLanguage}-${voiceType}`] || voiceMap["es-female"];
 
-      startSlowProgress(35, 54, "🎙️ Generando narración con IA...", 30000);
+      startSlowProgress(35, 54, `🎙️ ${t("dashboard.generatingNarration")}`, 30000);
 
       let audioBlob = null;
       try {
@@ -588,12 +604,12 @@ export default function Dashboard() {
       stopSlowProgress();
       await smoothProgress(
         55,
-        audioBlob ? "✅ Narración lista" : "⚠️ Sin audio, creando video...",
+        audioBlob ? `✅ ${t("dashboard.narrationReady")}` : `⚠️ ${t("dashboard.noAudio")}`,
         500,
       );
 
       // === Phase 5: Render video CLIENT-SIDE (55% → 95%) ===
-      startSlowProgress(55, 94, "🎥 Renderizando video...", 60000);
+      startSlowProgress(55, 94, `🎥 ${t("dashboard.renderingVideo")}`, 60000);
 
       // Only use video URL if we don't have photos
       const videoDataUrl =
@@ -625,10 +641,10 @@ export default function Dashboard() {
       stopSlowProgress();
 
       if (!videoBlob || videoBlob.size < 1000) {
-        throw new Error("El video generado está vacío o corrupto");
+        throw new Error(t("dashboard.videoEmpty"));
       }
 
-      await smoothProgress(96, "💾 Guardando video...", 800);
+      await smoothProgress(96, `💾 ${t("dashboard.savingVideo")}`, 800);
 
       // Create playback URL
       const videoUrl = URL.createObjectURL(videoBlob);
@@ -654,24 +670,36 @@ export default function Dashboard() {
       );
       incrementVideoCount();
 
-      await smoothProgress(100, "🎉 ¡Video completado!", 1000);
+      await smoothProgress(100, `🎉 ${t("dashboard.videoComplete")}`, 1000);
       clearInterval(tipsTimer);
     } catch (error) {
       stopSlowProgress();
       clearInterval(tipsTimer);
-      console.error("Generation error:", error);
-      let userMessage = error.message;
-      if (error.name === "TimeoutError" || error.message.includes("timeout")) {
-        userMessage = "Hubo un problema con la conexión. Intenta de nuevo.";
+      console.error("Generation error:", error, `[provider=backend, lang=${videoLanguage}]`);
+
+      let userMessage = error.message || "Error desconocido";
+
+      // Fix UTF-8 double-encoding corruption ("fallÃ³" → "falló")
+      try {
+        if (/[\xc0-\xff][\x80-\xbf]/.test(userMessage)) {
+          userMessage = decodeURIComponent(escape(userMessage));
+        }
+      } catch { /* keep original */ }
+
+      // Map technical errors to friendly messages
+      if (error.name === "TimeoutError" || userMessage.includes("timeout") || userMessage.includes("excedido")) {
+        userMessage = t("dashboard.timeoutError");
       } else if (
-        error.message.includes("Failed to fetch") ||
-        error.message.includes("NetworkError")
+        userMessage.includes("Failed to fetch") ||
+        userMessage.includes("NetworkError")
       ) {
-        userMessage =
-          "No se puede conectar al servidor\nFailed to fetch\n\nVerifica tu conexión a internet.";
+        userMessage = t("dashboard.networkError");
       }
-      const errorDetail = `${userMessage}\n\n[Debug: provider=backend, lang=${videoLanguage}]`;
-      setError(errorDetail);
+
+      // Remove [Debug: ...] suffix if present (hide technical details from user)
+      userMessage = userMessage.replace(/\s*\[Debug:[^\]]*\]/g, "").trim();
+
+      setError(userMessage);
     }
   };
 
@@ -684,22 +712,53 @@ export default function Dashboard() {
     if (!isYoutubeConnected()) {
       setUploadStatus("error");
       setUploadError(
-        "⚠️ Conecta tu canal de YouTube primero.\nVe a Mi Cuenta → Conectar Canal.",
+        `⚠️ ${t("dashboard.connectYouTubeFirst")}`,
       );
       return;
     }
 
     const blob = currentVideo?.blob;
-    if (!blob) {
+    if (!blob && !currentVideo?.videoUrl) {
       setUploadStatus("error");
-      setUploadError("No hay video para subir. Genera uno primero.");
+      setUploadError(t("dashboard.noVideoToUpload"));
       return;
     }
 
     try {
       setUploadStatus("uploading");
-      const videoBlob =
-        blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob());
+      let videoBlob = null;
+
+      // Strategy 1: Already a Blob object (best case)
+      if (blob instanceof Blob) {
+        videoBlob = blob;
+      }
+
+      // Strategy 2: It's a blob: or http URL — fetch it
+      if (!videoBlob && typeof blob === "string") {
+        try {
+          const r = await fetch(blob);
+          if (r.ok) videoBlob = await r.blob();
+        } catch (fetchErr) {
+          console.warn("Fetch blob URL failed:", fetchErr);
+        }
+      }
+
+      // Strategy 3: Try videoUrl as fallback (blob URL might have been revoked)
+      if (!videoBlob && currentVideo?.videoUrl) {
+        try {
+          const r = await fetch(currentVideo.videoUrl);
+          if (r.ok) videoBlob = await r.blob();
+        } catch (fetchErr) {
+          console.warn("Fetch videoUrl failed:", fetchErr);
+        }
+      }
+
+      if (!videoBlob) {
+        throw new Error(
+          "No se pudo acceder al video. Genera el video de nuevo antes de subirlo.",
+        );
+      }
+
       const result = await uploadToYoutube(videoBlob, {
         title: currentVideo.title,
         description: currentVideo.description,
@@ -719,41 +778,88 @@ export default function Dashboard() {
     }
   };
 
-  // Download / Share video
-  const handleDownload = async () => {
-    let blob = currentVideo?.blob;
+  // Helper: get video blob — checks memory, IndexedDB, then storage URL
+  const getVideoBlob = async (video) => {
+    // 1. Already a Blob in memory (best case — right after generation)
+    if (video?.blob instanceof Blob && video.blob.size > 1000) {
+      console.log("✅ Using blob from memory:", video.blob.size, "bytes");
+      return video.blob;
+    }
 
-    // If blob is missing, try to get it from videoUrl or storage
-    if (!blob && currentVideo?.videoUrl) {
+    // 2. Try IndexedDB (persists across sessions)
+    if (video?.id) {
       try {
-        blob = await fetch(currentVideo.videoUrl).then((r) => r.blob());
+        const blob = await new Promise((resolve) => {
+          const req = indexedDB.open("facelesstube_blobs", 1);
+          req.onsuccess = (e) => {
+            const idb = e.target.result;
+            if (!idb.objectStoreNames.contains("videos")) {
+              resolve(null);
+              return;
+            }
+            const tx = idb.transaction("videos", "readonly");
+            const get = tx.objectStore("videos").get(video.id);
+            get.onsuccess = () => resolve(get.result?.blob || null);
+            get.onerror = () => resolve(null);
+          };
+          req.onerror = () => resolve(null);
+        });
+        if (blob instanceof Blob && blob.size > 1000) {
+          console.log("✅ Using blob from IndexedDB:", blob.size, "bytes");
+          return blob;
+        }
       } catch (e) {
-        console.warn("Failed to fetch from videoUrl:", e);
+        console.warn("IndexedDB blob lookup failed:", e);
       }
     }
 
-    if (!blob) {
+    // 3. Try current blob URL (may be revoked)
+    const blobUrl = video?.blob || video?.videoUrl;
+    if (typeof blobUrl === "string" && (blobUrl.startsWith("blob:") || blobUrl.startsWith("http"))) {
+      try {
+        const r = await fetch(blobUrl, { signal: AbortSignal.timeout(15000) });
+        if (r.ok) {
+          const blob = await r.blob();
+          if (blob.size > 1000) {
+            console.log("✅ Using blob from URL:", blob.size, "bytes");
+            return blob;
+          }
+        }
+      } catch (e) {
+        console.warn("Blob URL fetch failed (may be revoked):", e);
+      }
+    }
+
+    return null;
+  };
+
+  // Download / Share video
+  const handleDownload = async () => {
+    setUploadStatus("downloading");
+    setUploadError("⏳ Preparando video...");
+
+    const videoBlob = await getVideoBlob(currentVideo);
+
+    if (!videoBlob) {
       setUploadStatus("error");
-      setUploadError("No hay video para descargar. Genera uno primero.");
+      setUploadError("El video ya no está en memoria. Genera el video de nuevo para descargarlo.");
       return;
     }
 
     try {
-      // Ensure we have a real Blob
-      const videoBlob =
-        blob instanceof Blob ? blob : await fetch(blob).then((r) => r.blob());
-
-      // Clean filename (remove special chars)
+      // Use .mp4 extension for Android compatibility
+      // (MediaRecorder produces WebM but .mp4 extension lets Android gallery open it)
       const safeTitle =
         (currentVideo.title || "FacelessTube_video")
-          .replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ _-]/g, "")
+          .replace(/[^a-zA-Z0-9 _-]/g, "")
           .trim() || "FacelessTube_video";
-      const fileName = `${safeTitle}.webm`;
+      const fileName = `${safeTitle}.mp4`;
 
-      // Option 1: Capacitor Filesystem (Android native save)
+      console.log("📥 Downloading video:", fileName, videoBlob.size, "bytes");
+
+      // Option 1: Capacitor Filesystem (Android native save to Downloads)
       if (Capacitor.isNativePlatform()) {
         try {
-          // Convert blob to base64
           const reader = new FileReader();
           const base64Data = await new Promise((resolve, reject) => {
             reader.onloadend = () => resolve(reader.result.split(",")[1]);
@@ -762,7 +868,6 @@ export default function Dashboard() {
           });
 
           setIsDownloading(true);
-          setUploadStatus("downloading");
           await Filesystem.writeFile({
             path: `Download/${fileName}`,
             data: base64Data,
@@ -772,23 +877,20 @@ export default function Dashboard() {
 
           setIsDownloading(false);
           setUploadStatus("success");
-          setUploadError("✅ Video guardado en Descargas");
-          // Show success toast-like feedback
+          setUploadError(`✅ ${t("dashboard.savedToDownloads")}`);
           setTimeout(() => {
             setUploadStatus(null);
             setUploadError("");
           }, 3000);
           return;
         } catch (fsErr) {
-          console.warn(
-            "Capacitor Filesystem save failed, trying Share API:",
-            fsErr,
-          );
+          console.warn("Capacitor Filesystem failed, trying Share API:", fsErr);
+          // Fall through to Share API
         }
       }
 
-      // Option 2: Share API (mobile-friendly — save to gallery, share to apps)
-      const file = new File([videoBlob], fileName, { type: "video/webm" });
+      // Option 2: Web Share API (mobile — share to WhatsApp, Telegram, Drive, etc.)
+      const file = new File([videoBlob], fileName, { type: "video/mp4" });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({
@@ -796,17 +898,22 @@ export default function Dashboard() {
             text: "Video creado con FacelessTube",
             files: [file],
           });
-          return; // Share successful
+          setIsDownloading(false);
+          setUploadStatus(null);
+          setUploadError("");
+          return;
         } catch (shareErr) {
-          // User cancelled or share failed — fall through to download
-          if (shareErr.name === "AbortError") return;
-          console.warn("Share API failed, falling back to download:", shareErr);
+          if (shareErr.name === "AbortError") {
+            setUploadStatus(null);
+            setUploadError("");
+            return; // User cancelled
+          }
+          console.warn("Share API failed, falling back to download link:", shareErr);
         }
       }
 
-      // Option 3: Fallback direct download (desktop or older mobile)
+      // Option 3: Direct download link (web / desktop)
       setIsDownloading(true);
-      setUploadStatus("downloading");
       const url = URL.createObjectURL(videoBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -815,10 +922,10 @@ export default function Dashboard() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
       setIsDownloading(false);
       setUploadStatus("success");
-      setUploadError("✅ Video descargado");
+      setUploadError(`✅ ${t("dashboard.videoDownloaded")}`);
       setTimeout(() => {
         setUploadStatus(null);
         setUploadError("");
@@ -826,7 +933,8 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Download/Share error:", e);
       setUploadStatus("error");
-      setUploadError("Error al descargar el video. Intenta de nuevo.");
+      setUploadError(t("dashboard.downloadError"));
+      setIsDownloading(false);
     }
   };
 
@@ -932,17 +1040,16 @@ export default function Dashboard() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold mb-1">
-                ¡Configura tus APIs gratuitas!
+                {t("dashboard.setupApis")}
               </h3>
               <p className="text-white/60 text-sm mb-3">
-                Solo necesitas 2 minutos para configurar las APIs y empezar a
-                crear videos increíbles.
+                {t("dashboard.setupApisDesc")}
               </p>
               <button
                 onClick={() => setShowTutorial(true)}
                 className="btn-neon py-2 px-4 text-sm"
               >
-                Iniciar Tutorial →
+                {t("dashboard.startTutorial")}
               </button>
             </div>
           </div>
@@ -957,7 +1064,7 @@ export default function Dashboard() {
             {/* Template / Niche Selector */}
             <div className="mb-4 md:mb-6">
               <label className="block text-sm font-medium mb-2">
-                🎯 Estilo de video
+                🎯 {t("dashboard.videoStyle")}
               </label>
               <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
                 {VIDEO_TEMPLATES.map((tmpl) => (
@@ -988,7 +1095,7 @@ export default function Dashboard() {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-neon-purple/20 border border-neon-purple/30 text-neon-purple hover:bg-neon-purple/30 transition-all"
                 >
                   <Shuffle size={14} />
-                  Dame una idea
+                  {t("dashboard.giveIdea")}
                 </button>
               </div>
               <textarea
@@ -1004,15 +1111,15 @@ export default function Dashboard() {
             <div className="mb-4 md:mb-6">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium">
-                  🏷️ Hashtags personalizados
+                  🏷️ {t("dashboard.customHashtags")}
                 </label>
-                <span className="text-xs text-white/40">Opcional</span>
+                <span className="text-xs text-white/40">{t("dashboard.optional")}</span>
               </div>
               <input
                 type="text"
                 value={customHashtags}
                 onChange={(e) => setCustomHashtags(e.target.value)}
-                placeholder="#viral #shorts #youtube (separados por espacio o coma)"
+                placeholder={t("dashboard.hashtagsPlaceholder")}
                 className="input-glass text-sm w-full"
                 disabled={!canGenerate}
               />
@@ -1064,80 +1171,19 @@ export default function Dashboard() {
             {/* Voice selector */}
             <div className="mb-4 md:mb-6">
               <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium">🎙️ Tipo de voz</label>
+                <label className="text-sm font-medium">🎙️ {t("dashboard.voiceType")}</label>
                 <button
                   onClick={handlePreviewVoice}
                   className="flex items-center gap-2 text-sm text-neon-cyan hover:underline"
                 >
                   {isPreviewing ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                  {isPreviewing ? "Detener" : "Probar"}
+                  {isPreviewing ? t("dashboard.stop") : t("dashboard.test")}
                 </button>
               </div>
 
-              {/* Toggle Voz Básica / Voz IA */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => setVoiceMode("basic")}
-                  className={`flex-1 p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                    voiceMode === "basic"
-                      ? "border-neon-cyan bg-neon-cyan/10 text-neon-cyan"
-                      : "border-white/10 text-white/60 hover:border-white/30"
-                  }`}
-                >
-                  <Mic size={18} />
-                  <span className="text-sm">Voz Navegador</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    setVoiceMode("ai");
-                    setAiVoiceLoading(true);
-                    try {
-                      // Mapear idioma de la app a código de idioma del modelo
-                      const langMap = {
-                        es: "es",
-                        en: "en",
-                        pt: "pt",
-                      };
-                      const aiLang = langMap[videoLanguage] || "es";
-                      await loadAIVoiceModel((msg) => console.log(msg), aiLang);
-                      setAiVoiceAvailable(true);
-                    } catch (e) {
-                      console.error("Error cargando voz IA:", e);
-                    }
-                    setAiVoiceLoading(false);
-                  }}
-                  className={`flex-1 p-3 rounded-xl border transition-all flex items-center justify-center gap-2 ${
-                    voiceMode === "ai"
-                      ? "border-neon-purple bg-neon-purple/10 text-neon-purple"
-                      : "border-white/10 text-white/60 hover:border-white/30"
-                  }`}
-                >
-                  {aiVoiceLoading ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Bot size={18} />
-                  )}
-                  <span className="text-sm">Voz IA</span>
-                  <span className="text-xs px-1.5 py-0.5 bg-neon-green/20 text-neon-green rounded">
-                    NEW
-                  </span>
-                </button>
-              </div>
 
-              {/* Info sobre voz IA */}
-              {voiceMode === "ai" && (
-                <div className="mb-4 p-3 rounded-xl bg-neon-purple/10 border border-neon-purple/30">
-                  <p className="text-xs text-white/70">
-                    <Bot size={14} className="inline mr-1" />
-                    🇪🇸 Voz IA en español (MMS-TTS). Primera vez descarga ~30MB
-                    del modelo. Funciona 100% offline después.
-                  </p>
-                </div>
-              )}
-
-              {/* Género de voz - solo para voz básica */}
-              {voiceMode === "basic" && (
-                <div className="flex gap-4">
+              {/* Género de voz */}
+              <div className="flex gap-4">
                   <button
                     onClick={() => setVoiceType("female")}
                     className={`
@@ -1167,13 +1213,12 @@ export default function Dashboard() {
                     <span>{t("dashboard.voiceMale")}</span>
                   </button>
                 </div>
-              )}
             </div>
 
             {/* 🎨 Estilo Visual — Pro card showing auto Pexels */}
             <div className="mb-4 md:mb-6">
               <label className="block text-sm font-medium mb-2">
-                🎨 Estilo Visual
+                🎨 {t("dashboard.visualStyleLabel")}
               </label>
 
               <div className="grid grid-cols-3 gap-2">
@@ -1202,11 +1247,11 @@ export default function Dashboard() {
                           : "text-white/70"
                       }`}
                     >
-                      Fotos HD
+                      {t("dashboard.photosHD")}
                     </span>
                   </div>
                   <p className="text-[9px] text-white/40 leading-snug">
-                    Pexels auto + Ken Burns
+                    {t("dashboard.photosDesc")}
                   </p>
                   {visualStyle === "photos" && (
                     <div className="absolute top-1.5 right-1.5">
@@ -1242,11 +1287,11 @@ export default function Dashboard() {
                           : "text-white/70"
                       }`}
                     >
-                      Clips
+                      {t("dashboard.clips")}
                     </span>
                   </div>
                   <p className="text-[9px] text-white/40 leading-snug">
-                    Videos de fondo en bucle
+                    {t("dashboard.clipsDesc")}
                   </p>
                   {visualStyle === "clips" && (
                     <div className="absolute top-1.5 right-1.5">
@@ -1282,11 +1327,11 @@ export default function Dashboard() {
                           : "text-white/70"
                       }`}
                     >
-                      Gradiente
+                      {t("dashboard.gradient")}
                     </span>
                   </div>
                   <p className="text-[9px] text-white/40 leading-snug">
-                    Fondo animado dinámico
+                    {t("dashboard.gradientDesc")}
                   </p>
                   {visualStyle === "gradient" && (
                     <div className="absolute top-1.5 right-1.5">
@@ -1372,8 +1417,7 @@ export default function Dashboard() {
                             }}
                             className="w-full mt-2 p-2 rounded-lg border border-white/10 text-white/50 text-xs hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
                           >
-                            Ver más clips ({allClips.length - INITIAL_COUNT}{" "}
-                            más) →
+                            {t("dashboard.showMore", { count: allClips.length - INITIAL_COUNT })}
                           </button>
                         )}
                         {isExpanded && allClips.length > INITIAL_COUNT && (
@@ -1385,7 +1429,7 @@ export default function Dashboard() {
                             }}
                             className="w-full mt-2 p-2 rounded-lg border border-white/10 text-white/40 text-xs hover:border-white/20 transition-all"
                           >
-                            Mostrar menos ↑
+                            {t("dashboard.showLess")}
                           </button>
                         )}
                       </>
@@ -1418,12 +1462,12 @@ export default function Dashboard() {
                 <Zap size={12} className="text-neon-cyan flex-shrink-0" />
                 <span className="text-[10px] text-white/50">
                   {visualStyle === "photos"
-                    ? "La IA busca fotos automáticamente según el tema de tu video"
+                    ? t("dashboard.photosInfo")
                     : visualStyle === "clips"
                       ? selectedClip
-                        ? `Se usará "${selectedClip.name}" como fondo en bucle`
-                        : "Elige un clip de arriba para usarlo como fondo"
-                      : "Se generará un fondo gradiente animado que combina con tu contenido"}
+                        ? t("dashboard.clipsSelectedInfo", { name: selectedClip.name })
+                        : t("dashboard.clipsInfo")
+                      : t("dashboard.gradientInfo")}
                 </span>
               </div>
             </div>
@@ -1431,7 +1475,7 @@ export default function Dashboard() {
             {/* ⏱️ Duration Selector */}
             <div className="mb-4 md:mb-6">
               <label className="block text-sm font-medium mb-2">
-                ⏱️ Duración del video
+                ⏱️ {t("dashboard.duration")}
               </label>
               <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
                 {[1, 3, 5, 10, 15, 20].map((mins) => {
@@ -1468,12 +1512,12 @@ export default function Dashboard() {
                 <div className="mt-2 p-2 rounded-lg bg-white/5 border border-white/10 flex items-center gap-2">
                   <Lock size={12} className="text-neon-purple flex-shrink-0" />
                   <span className="text-[10px] text-white/50">
-                    Tu plan permite hasta {Math.floor((tierInfo.maxDuration || 60) / 60)} min.
+                    {t("dashboard.planLimit", { max: Math.floor((tierInfo.maxDuration || 60) / 60) })}
                     <a
                       href="/app/premium"
                       className="text-neon-cyan hover:underline ml-1"
                     >
-                      Mejora tu plan →
+                      {t("dashboard.upgradePlan")}
                     </a>
                   </span>
                 </div>
@@ -1497,16 +1541,15 @@ export default function Dashboard() {
                 />
                 <div>
                   <p className="text-yellow-300 text-sm font-medium">
-                    Plan Free
+                    {t("dashboard.planFree")}
                   </p>
                   <p className="text-white/60 text-sm">
-                    Los videos tendrán marca de agua y duración máxima de 1
-                    minuto.
+                    {t("dashboard.watermarkWarning")}
                     <a
                       href="/app/premium"
                       className="text-neon-cyan hover:underline ml-1"
                     >
-                      Mejora tu plan
+                      {t("dashboard.upgradePlanShort")}
                     </a>
                   </p>
                 </div>
@@ -1535,10 +1578,10 @@ export default function Dashboard() {
 
             {/* Status message — above bar */}
             <p className="text-lg font-semibold mb-1 text-white">
-              {progressMessage || "Procesando..."}
+              {progressMessage || t("dashboard.processing")}
             </p>
             <p className="text-sm text-white/50 mb-5">
-              {Math.round(generationProgress)}% completado
+              {Math.round(generationProgress)}% {t("dashboard.completed")}
             </p>
 
             {/* Progress bar */}
@@ -1601,7 +1644,7 @@ export default function Dashboard() {
                     user?.id,
                   )
                 }
-                placeholder="Escribe el título de tu video..."
+                placeholder={t("dashboard.titlePlaceholder")}
               />
             </div>
 
@@ -1619,7 +1662,7 @@ export default function Dashboard() {
                     user?.id,
                   )
                 }
-                placeholder="Escribe la descripción de tu video..."
+                placeholder={t("dashboard.descPlaceholder")}
               />
             </div>
 
@@ -1641,14 +1684,14 @@ export default function Dashboard() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium">
-                    🏷️ Hashtags virales
+                    🏷️ {t("dashboard.viralHashtags")}
                   </label>
                   <button
                     onClick={handleCopyHashtags}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-neon-cyan/20 border border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30 transition-all"
                   >
                     {hashtagsCopied ? <Check size={14} /> : <Copy size={14} />}
-                    {hashtagsCopied ? "¡Copiados!" : "Copiar todos"}
+                    {hashtagsCopied ? t("dashboard.copied") : t("dashboard.copyAll")}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -1675,7 +1718,7 @@ export default function Dashboard() {
             {currentVideo.tags?.length > 0 && (
               <div className="mb-8">
                 <label className="block text-sm font-medium mb-2">
-                  🔍 Tags SEO
+                  🔍 {t("dashboard.seoTags")}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {currentVideo.tags?.map((tag, i) => (
@@ -1703,14 +1746,12 @@ export default function Dashboard() {
               >
                 {uploadStatus === "uploading" && (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Subiendo
-                    video a YouTube...
+                    <Loader2 size={16} className="animate-spin" /> {t("dashboard.uploading")}
                   </>
                 )}
                 {uploadStatus === "success" && (
                   <>
-                    <CheckCircle2 size={16} /> ¡Video subido a YouTube como
-                    borrador!
+                    <CheckCircle2 size={16} /> {t("dashboard.uploadSuccess")}
                   </>
                 )}
                 {uploadStatus === "error" && (
@@ -1758,7 +1799,7 @@ export default function Dashboard() {
                   </svg>
                 )}
                 {uploadStatus === "uploading"
-                  ? "Subiendo..."
+                  ? t("dashboard.uploading_yt")
                   : t("dashboard.upload")}
               </button>
 
@@ -1770,7 +1811,7 @@ export default function Dashboard() {
                   onClick={handleDownload}
                   disabled={isDownloading}
                   className={`btn-secondary flex items-center justify-center gap-2 px-4 flex-1 ${isDownloading ? "opacity-70 cursor-wait" : ""}`}
-                  title="Guardar o Compartir video"
+                  title={t("dashboard.saveOrShare")}
                 >
                   {isDownloading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1780,15 +1821,15 @@ export default function Dashboard() {
                     <Download size={18} />
                   )}
                   {isDownloading
-                    ? "Descargando..."
+                    ? t("dashboard.downloading")
                     : navigator.share
-                      ? "Compartir"
+                      ? t("dashboard.share")
                       : t("dashboard.download")}
                 </button>
                 <button
                   onClick={() => setShowEmailModal(true)}
                   className="btn-secondary flex items-center justify-center gap-2 px-4"
-                  title="Enviar por Email"
+                  title={t("dashboard.sendByEmail")}
                 >
                   <Mail size={18} />
                 </button>
@@ -1812,17 +1853,17 @@ export default function Dashboard() {
             </div>
             <h2 className="text-2xl font-display font-bold mb-2">Error</h2>
             <p className="text-white/60 mb-4 whitespace-pre-wrap text-sm max-w-md mx-auto">
-              {generationError || "Algo salió mal"}
+              {generationError || t("dashboard.somethingWrong")}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-4">
               <button onClick={handleReset} className="btn-neon">
-                Intentar de nuevo
+                {t("dashboard.tryAgain")}
               </button>
               <button
                 onClick={handleTestApi}
                 className="px-4 py-2 rounded-xl bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/30 transition-colors text-sm"
               >
-                🔍 Diagnosticar API
+                🔍 {t("dashboard.diagnoseApi")}
               </button>
             </div>
             {apiTestResult && (

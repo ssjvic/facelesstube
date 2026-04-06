@@ -159,6 +159,7 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
     console.log("📤 Iniciando subida a YouTube...", { title, privacyStatus });
 
     // Step 1: Initialize resumable upload
+    // Note: Content-Length is a forbidden header in fetch API — do NOT include it
     const initResponse = await fetch(
       "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
       {
@@ -166,10 +167,11 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          "X-Upload-Content-Length": videoBlob.size,
           "X-Upload-Content-Type": videoBlob.type || "video/mp4",
+          // X-Upload-Content-Length is optional and can cause issues on some clients
         },
         body: JSON.stringify(videoMetadata),
+        signal: AbortSignal.timeout(30000),
       },
     );
 
@@ -210,13 +212,16 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
     console.log("📤 Subiendo video...", { size: videoBlob.size });
 
     // Step 2: Upload the video content
+    // Note: Content-Length is a FORBIDDEN header in fetch API — causes "Failed to fetch" on Android
+    // The browser sets it automatically from the body
     const uploadResponse = await fetch(uploadUrl, {
       method: "PUT",
       headers: {
         "Content-Type": videoBlob.type || "video/mp4",
-        "Content-Length": videoBlob.size,
+        // DO NOT set Content-Length here — forbidden header, causes fetch to fail
       },
       body: videoBlob,
+      signal: AbortSignal.timeout(300000), // 5 min timeout for large video uploads
     });
 
     if (!uploadResponse.ok) {
@@ -238,7 +243,20 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
       title: videoData.snippet?.title,
     };
   } catch (error) {
-    console.error("❌ Excepción en uploadToYoutube:", error);
+    console.error("❌ Excepcion en uploadToYoutube:", error);
+
+    if (error.name === "TimeoutError" || error.name === "AbortError") {
+      return {
+        success: false,
+        error: "La subida tardo demasiado. Intenta con un video mas corto o verifica tu conexion.",
+      };
+    }
+    if (error.message?.includes("Failed to fetch")) {
+      return {
+        success: false,
+        error: "No se pudo conectar con YouTube. Verifica tu conexion a internet e intenta de nuevo.",
+      };
+    }
     return {
       success: false,
       error: error.message || "Error desconocido al subir",

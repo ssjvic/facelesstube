@@ -31,7 +31,7 @@ const PLAN_DATA = [
         border: 'border-white/20',
         videos: '5 videos/mes',
         duration: '1 minuto max',
-        extras: ['Marca de agua', 'Voces básicas'],
+        extras: ['Marca de agua', 'Voz IA'],
         badge: '🆓'
     },
     {
@@ -57,7 +57,7 @@ const PLAN_DATA = [
         border: 'border-neon-purple/40',
         videos: '100 videos/mes',
         duration: 'Hasta 15 min',
-        extras: ['Voces premium', 'Soporte prioritario'],
+        extras: ['Sin marca de agua', 'Soporte prioritario'],
         popular: true,
         badge: '👑'
     },
@@ -71,7 +71,7 @@ const PLAN_DATA = [
         border: 'border-neon-cyan/40',
         videos: 'Videos ilimitados',
         duration: 'Hasta 20 min',
-        extras: ['Todas las voces', 'Soporte 24/7', 'API access'],
+        extras: ['Sin límites', 'Soporte 24/7', 'API access'],
         badge: '🚀'
     }
 ]

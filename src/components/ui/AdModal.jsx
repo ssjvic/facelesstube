@@ -169,7 +169,7 @@ export default function AdModal() {
 
                 {/* Texto pequeño */}
                 <p className="text-center text-white/40 text-xs mt-3">
-                    Apoya nuestra app viendo este anuncio • Los usuarios Premium no ven anuncios
+                    Apoya nuestra app viendo este anuncio • Los usuarios Pro no ven anuncios
                 </p>
             </div>
         </div>

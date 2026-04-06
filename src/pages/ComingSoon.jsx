@@ -40,9 +40,9 @@ export default function App() {
 
         {/* 1. EL GANCHO (HERO SECTION) */}
         <section className="px-6 max-w-5xl mx-auto text-center space-y-10 relative">
-          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full border border-primary/50 bg-primary/10 mb-4 animate-pulse">
-            <Zap size={16} className="text-primary" />
-            <span className="text-xs font-bold uppercase tracking-widest text-primary">El Secreto Mejor Guardado de YouTube</span>
+          <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full border border-white/20 bg-white/5 mb-4 animate-pulse">
+            <Zap size={16} className="text-emerald-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">El Secreto Mejor Guardado de YouTube</span>
           </div>
 
           <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-tight drop-shadow-2xl">
@@ -62,19 +62,6 @@ export default function App() {
             <p className="text-sm font-bold text-white/40 flex items-center gap-2">
               <CheckCircle2 size={14} className="text-primary" /> Cancela cuando quieras. Acceso inmediato.
             </p>
-          </div>
-
-          {/* VSL Placeholder / Demo */}
-          <div className="mt-16 relative max-w-4xl mx-auto rounded-[40px] overflow-hidden border border-white/10 shadow-2xl glass-card aspect-video flex items-center justify-center group cursor-pointer">
-            <div className="absolute inset-0 bg-gradient-to-tr from-black/80 to-transparent z-10 pointer-events-none"></div>
-            <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200" alt="Video Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 transition-opacity duration-1000 group-hover:scale-105" />
-            <div className="relative z-20 size-24 rounded-full bg-primary/90 flex items-center justify-center neon-glow group-hover:scale-110 transition-transform">
-              <Play size={40} className="text-white fill-white ml-2" />
-            </div>
-            <div className="absolute bottom-8 left-8 z-20 text-left">
-              <span className="px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-xs font-bold uppercase tracking-widest text-primary border border-primary/30 mb-3 inline-block">Demostración de 2 min</span>
-              <h3 className="text-2xl font-black italic">Mira cómo la IA hace el trabajo sucio.</h3>
-            </div>
           </div>
         </section>
 
@@ -174,7 +161,7 @@ export default function App() {
                 <Rocket className="text-electric-cyan opacity-20 group-hover:opacity-100 transition-opacity" size={40} />
               </div>
               <p className="text-lg text-white/80 font-medium italic leading-relaxed">
-                "Empecé subiendo videos por pura diversión. Cuando me llegó el primer pago de YouTube por $40 dólares, mi cerebro explotó al entender el potencial. Sistematicé todo con FacelessTube. Creé 10 canales usando diferentes IAs para diferentes nichos. Ahora dedico 3 horas a la semana a subir los videos y facturo en un mes lo que cobraba en 6 meses de godín."
+                "Empecé subiendo videos por pura diversión. Cuando me llegó el primer pago de YouTube por $40 dólares, mi cerebro explotó al entender el potencial. Sistematicé todo con FacelessTube. Creé 10 canales para diferentes nichos. Ahora dedico 3 horas a la semana a subir los videos y facturo en un mes lo que cobraba en 6 meses de godín."
               </p>
             </GlassCard>
           </div>
@@ -289,14 +276,10 @@ export default function App() {
               El tiempo pasa igual. Puedes seguir perdiendo horas en algo que odias, o invertir 5 minutos hoy para construir una máquina que pague tus facturas mientras duermes.
             </p>
 
-            <button onClick={handleStart} className="w-full md:w-auto px-16 py-6 rounded-2xl bg-white text-background-dark font-black text-2xl uppercase tracking-widest hover:scale-[1.03] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto group">
-              <Zap className="text-primary group-hover:scale-125 transition-transform" />
+            <button onClick={handleStart} className="w-full md:w-auto px-16 py-6 rounded-2xl bg-white text-black font-black text-2xl uppercase tracking-widest hover:scale-[1.03] active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-4 mx-auto group">
+              <Zap className="text-black group-hover:scale-125 transition-transform" />
               Sácame de mi trabajo
             </button>
-            
-            <p className="mt-8 text-white/50 text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-              <Clock size={14} /> Oferta de Early Access termina pronto
-            </p>
           </div>
         </section>
 

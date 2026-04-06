@@ -13,14 +13,21 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
+import { useTranslation } from "../store/i18nStore";
+
+// Detect billing mode at build time
+const isPlayStoreBuild = import.meta.env.VITE_BILLING_MODE === "playstore";
+
+// Stripe prices (only used in web builds, but safe to reference always)
+// When building for Play Store, stripe.js is still bundled but never called
 import { STRIPE_PRICES, createCheckoutSession } from "../config/stripe";
 
 // Premium tools marketplace
 const premiumTools = [
   {
-    id: "elevenlabs",
-    name: "ElevenLabs Voice",
-    description: "Voces ultra realistas en HD para narración profesional",
+    id: "priority_support",
+    name: "Soporte Prioritario",
+    description: "Atención personalizada y soporte técnico inmediato",
     credits: 10,
     icon: Mic,
     color: "neon-cyan",
@@ -58,7 +65,7 @@ const tiers = [
     icon: Zap,
     price: { monthly: 0, annual: 0 },
     priceId: null,
-    features: ["3-5 videos/mes", "Marca de agua", "1 min max", "Voces básicas"],
+    features: ["3-5 videos/mes", "Marca de agua", "1 min max"],
     limitations: ["Marca de agua", "Duración limitada"],
     badge: "badge-free",
   },
@@ -67,7 +74,7 @@ const tiers = [
     name: "Starter",
     icon: Sparkles,
     price: { monthly: 9, annual: 90 },
-    priceId: STRIPE_PRICES.starter.monthly,
+    priceId: isPlayStoreBuild ? null : STRIPE_PRICES.starter?.monthly,
     features: [
       "30 videos/mes",
       "Sin marca de agua",
@@ -81,12 +88,11 @@ const tiers = [
     name: "Creator",
     icon: Crown,
     price: { monthly: 19, annual: 190 },
-    priceId: STRIPE_PRICES.creator.monthly,
+    priceId: isPlayStoreBuild ? null : STRIPE_PRICES.creator?.monthly,
     features: [
       "100 videos/mes",
       "Sin marca de agua",
       "Hasta 10 min",
-      "Voces premium",
       "Soporte prioritario",
     ],
     popular: true,
@@ -97,36 +103,21 @@ const tiers = [
     name: "Pro",
     icon: Infinity,
     price: { monthly: 39, annual: 390 },
-    priceId: STRIPE_PRICES.pro.monthly,
+    priceId: isPlayStoreBuild ? null : STRIPE_PRICES.pro?.monthly,
     features: [
       "Videos ilimitados",
       "Sin límites",
       "Hasta 20 min",
-      "Todas las voces",
       "Soporte 24/7",
       "API access",
     ],
     badge: "badge-unlimited",
   },
-  {
-    id: "test",
-    name: "Test",
-    icon: Zap,
-    price: { monthly: 0.01, annual: 0.01 },
-    priceId: STRIPE_PRICES.test?.monthly || null,
-    features: [
-      "Pago de prueba",
-      "Verifica tu tarjeta",
-      "Solo $0.01 USD",
-      "Sin suscripción",
-    ],
-    testOnly: true,
-    badge: "badge-free",
-  },
 ];
 
 export default function Premium() {
   const { user, updateUser } = useAuthStore();
+  const { t } = useTranslation();
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [selectedTool, setSelectedTool] = useState(null);
   const [isLoading, setIsLoading] = useState(null);
@@ -182,12 +173,8 @@ export default function Premium() {
     loadProducts();
   }, []);
 
-  const isPlayStoreBuild = import.meta.env.VITE_BILLING_MODE === "playstore";
 
-  // Filter tiers: hide test plan on Play Store builds
-  const visibleTiers = isPlayStoreBuild
-    ? tiers.filter((t) => !t.testOnly)
-    : tiers;
+  const visibleTiers = tiers;
 
   const handleUpgrade = async (tier) => {
     if (tier.id === "free" || tier.id === user?.tier) return;
@@ -257,7 +244,7 @@ export default function Premium() {
           <span className="text-gradient">Premium</span> Features
         </h1>
         <p className="text-white/60 text-sm md:text-base">
-          Desbloquea todo el potencial de FacelessTube
+          {t("premium.unlockPotential")}
         </p>
       </div>
 
@@ -271,7 +258,7 @@ export default function Premium() {
               : "text-white/60 hover:text-white"
           }`}
         >
-          Mensual
+          {t("premium.monthly")}
         </button>
         <button
           onClick={() => setBillingCycle("annual")}
@@ -281,9 +268,9 @@ export default function Premium() {
               : "text-white/60 hover:text-white"
           }`}
         >
-          Anual
+          {t("premium.annual")}
           <span className="px-2 py-0.5 rounded-full bg-neon-green/20 text-neon-green text-xs">
-            2 meses gratis
+            {t("premium.freeMonths")}
           </span>
         </button>
       </div>
@@ -301,19 +288,12 @@ export default function Premium() {
               className={`
                 glass-card p-4 md:p-6 relative
                 ${tier.popular ? "ring-2 ring-neon-purple" : ""}
-                ${tier.testOnly ? "ring-2 ring-orange-400/50" : ""}
                 ${isCurrentPlan ? "border-neon-cyan" : ""}
               `}
             >
               {tier.popular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-neon-purple text-dark-900 text-xs font-bold rounded-full">
                   POPULAR
-                </span>
-              )}
-
-              {tier.testOnly && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-400 text-dark-900 text-xs font-bold rounded-full">
-                  ⚠️ TEST
                 </span>
               )}
 
@@ -330,7 +310,6 @@ export default function Premium() {
                   ${tier.id === "free" ? "bg-white/10" : ""}
                   ${tier.id === "starter" ? "bg-neon-blue/20" : ""}
                   ${tier.id === "pro" ? "bg-neon-purple/20" : ""}
-                  ${tier.id === "test" ? "bg-orange-400/20" : ""}
                   ${tier.id === "unlimited" ? "bg-gradient-to-br from-neon-cyan/20 to-neon-pink/20" : ""}
                 `}
                 >
@@ -340,7 +319,6 @@ export default function Premium() {
                     ${tier.id === "free" ? "text-white/60" : ""}
                     ${tier.id === "starter" ? "text-neon-blue" : ""}
                     ${tier.id === "pro" ? "text-neon-purple" : ""}
-                    ${tier.id === "test" ? "text-orange-400" : ""}
                     ${tier.id === "unlimited" ? "text-neon-cyan" : ""}
                   `}
                   />
@@ -358,7 +336,7 @@ export default function Premium() {
                 </span>
                 <span className="text-white/60 text-xs md:text-sm">
                   {" "}
-                  USD{billingCycle === "annual" ? "/año" : "/mes"}
+                  USD{billingCycle === "annual" ? t("premium.perYear") : t("premium.perMonth")}
                 </span>
               </div>
 
@@ -388,12 +366,12 @@ export default function Premium() {
                 {isLoading === tier.id ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Redirigiendo...
+                    {t("premium.redirecting")}
                   </>
                 ) : isCurrentPlan ? (
-                  "Plan Actual"
+                  t("premium.currentPlan")
                 ) : (
-                  "Elegir Plan"
+                  t("premium.choosePlan")
                 )}
               </button>
             </div>

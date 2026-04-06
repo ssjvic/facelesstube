@@ -1,130 +1,143 @@
 ====================================================================
- FACELESSTUBE — SESIÓN: 2026-04-03 01:42 CST
+ FACELESSTUBE — SESIÓN: 2026-04-03 02:05 CST
  PROBLEMA: Los videos solo salen de 1 minuto
+ ESTADO: ✅ RESUELTO — PUSH COMPLETADO
 ====================================================================
 
 ╔══════════════════════════════════════════════════════════════════╗
 ║  DIAGNÓSTICO REALIZADO                                          ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  CAUSA RAÍZ ENCONTRADA:                                         ║
-║  El main.py del backend tiene TODAS las correcciones necesarias ║
+║  CAUSA RAÍZ:                                                    ║
+║  El main.py del backend tenía TODAS las correcciones necesarias ║
 ║  (chunked generation, expansion loop, duration_seconds), pero   ║
-║  NUNCA SE HIZO PUSH al repositorio de GitHub.                   ║
+║  NUNCA SE HABÍA HECHO PUSH al repositorio de GitHub.            ║
 ║                                                                  ║
-║  El deploy en Render (producción) aún tiene la versión vieja    ║
-║  del commit 782f374 que NO tiene chunked generation.            ║
-║                                                                  ║
-║  Commit actual en GitHub backend: 782f374                        ║
-║  Cambios locales pendientes: main.py (con TODA la lógica nueva) ║
+║  El deploy en Render (producción) tenía la versión vieja        ║
+║  del commit 782f374 que NO tenía chunked generation.            ║
 ╚══════════════════════════════════════════════════════════════════╝
 
 ====================================================================
-QUÉ TIENE EL main.py LOCAL (que falta en producción):
+✅ ACCIONES COMPLETADAS (2026-04-03 02:05 CST)
 ====================================================================
 
-1. ✅ FrontendScriptRequest con duration_seconds (línea 225)
+1. ✅ BACKEND PUSH completado
+   Commit: 52c84ef
+   Mensaje: "feat: chunked script generation for long videos, expansion loop, stall detection"
+   Archivos: main.py (+423 líneas, -143 líneas)
+   Repo: github.com/ssjvic/facelesstube-backend
+
+2. ✅ FRONTEND PUSH completado
+   Commit: abf2001
+   Mensaje: "sync: pending frontend changes, session instructions"
+   Archivos: 10 archivos cambiados (+690, -141)
+   Repo: github.com/ssjvic/facelesstube
+
+3. ⏳ RENDER AUTO-DEPLOY en progreso
+   - Render detecta el push automáticamente
+   - Deploy tarda ~2-3 minutos
+   - Verificar en: https://facelesstube-backend.onrender.com/health
+
+====================================================================
+QUÉ CAMBIOS SE PUSHEARON EN EL BACKEND (main.py):
+====================================================================
+
+1. FrontendScriptRequest con duration_seconds (línea 225)
    - Acepta duración de 15 a 1200 segundos
 
-2. ✅ Cálculo de word target dinámico (líneas 946-953)
+2. Cálculo de word target dinámico (líneas 946-953)
    - WORDS_PER_SECOND = 2.2
    - word_target = target_duration * 2.2
-   - word_min = word_target * 0.90
-   - word_max = word_target * 1.10
+   - word_min = word_target * 0.90, word_max = word_target * 1.10
 
-3. ✅ CHUNKED GENERATION para videos >60s (líneas 973-1057)
+3. CHUNKED GENERATION para videos >60s (líneas 973-1057)
    - Divide el script en segmentos de ~250 palabras cada uno
    - Cada segmento se genera con generate_segment()
    - Evita repetición pasando resumen de segmentos anteriores
    - Genera metadata (título, hashtags) por separado
 
-4. ✅ generate_segment() helper (líneas 868-939)
-   - Genera un segmento de narración en texto plano
-   - Limpia JSON artifacts automáticamente
+4. generate_segment() helper (líneas 868-939)
+   - Genera segmentos de narración en texto plano
    - 3 intentos con temperatura creciente
 
-5. ✅ Expansion loop para scripts cortos (líneas 1295-1376)
-   - Si después de todo el script sigue corto
+5. Expansion loop para scripts cortos (líneas 1295-1376)
    - Hasta 30 intentos de expansión
    - Detección de stalls (8 consecutivos sin progreso)
 
-6. ✅ Safety cap de 1500 segundos (25 min) en videoGenerator.js
+6. Nuclear script cleanup (líneas 1246-1293)
+   - Remueve JSON artifacts, labels, section markers
+   - Cap dinámico basado en duración
 
 ====================================================================
-LO QUE FALTA HACER:
+CAMBIOS PUSHEADOS EN EL FRONTEND:
 ====================================================================
 
-PASO 1: Push del backend
-  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube\backend
-  git add -A
-  git commit -m "feat: chunked script generation for long videos, expansion loop, stall detection"
-  git push origin main
-
-PASO 2: Push del frontend (cambios menores ya incluidos)
-  cd C:\Users\ssjvi\.gemini\antigravity\scratch\facelesstube
-  git add -A
-  git commit -m "update: sync all pending changes"
-  git push origin main
-
-PASO 3: Verificar deploy en Render
-  - Render detectará el push y hará auto-deploy
-  - Esperar ~2-3 minutos
-  - Verificar en https://facelesstube-backend.onrender.com/health
-
-PASO 4: Probar generación con duración >1min
-  - Ir a https://facelesstube.app
-  - Seleccionar duración de 3 minutos
-  - Generar un video y verificar que el script tenga ~396 palabras
-    (3 min = 180s × 2.2 = 396 palabras)
+  - Dashboard.jsx — mejoras UI, correcciones menores
+  - App.jsx — ThankYou page route
+  - Premium.jsx — mejoras planes
+  - speechService.js — correcciones voces
+  - videoGenerator.js — safety cap 1500s, watermark condicional
+  - ThankYou.jsx — nueva página (post-pago)
+  - INSTRUCCIONES_SESION_ACTUAL.txt — este archivo
 
 ====================================================================
-ARCHIVOS MODIFICADOS
-====================================================================
-
-BACKEND:
-  backend/main.py — Script generation con chunks + expansion
-
-FRONTEND (sin cambios de duración, ya estaba bien):
-  src/pages/Dashboard.jsx — videoDuration state, durationSec conversion
-  src/services/geminiService.js — Pasa duration_seconds al backend
-  src/services/videoGenerator.js — Safety cap 1500s, duración por audio
-
-====================================================================
-FLUJO COMPLETO DE DURACIÓN (cómo funciona):
+FLUJO COMPLETO DE DURACIÓN:
 ====================================================================
 
   1. Usuario selecciona 3 min en Dashboard.jsx
-     → videoDuration = 3 (estado en minutos)
+     → videoDuration = 3 (minutos)
   
-  2. handleGenerate() convierte a segundos
-     → durationSec = 3 * 60 = 180
+  2. handleGenerate() → durationSec = 3 * 60 = 180
   
-  3. generateScript() en geminiService.js envía al backend
-     → POST /api/ai/generate-script
-     → body: { idea, language, template, user_id, duration_seconds: 180 }
+  3. geminiService.js → POST /api/ai/generate-script
+     → body: { duration_seconds: 180 }
   
-  4. Backend ai_generate_script() en main.py
-     → target_duration = 180
+  4. Backend main.py:
      → word_target = 180 * 2.2 = 396
      → use_chunked_generation = true (180 > 60)
-     → 2 chunks de ~198 palabras cada uno
+     → 2 chunks de ~198 palabras
   
   5. TTS genera audio de ~180 segundos
   
-  6. videoGenerator.js renderiza video
+  6. videoGenerator.js:
      → totalDurationSec = audioBuffer.duration (~180s)
-     → numScenes = min(scenes.length, ceil(180/5)) = 36 scenes
   
   7. Video de 3 minutos ✅
 
 ====================================================================
-SI EL SISTEMA CRASHEA — RESUMEN RÁPIDO
+PARA VERIFICAR QUE FUNCIONA:
 ====================================================================
 
-  • El código local YA está correcto
-  • Solo falta: git push en backend + frontend
-  • Render auto-deploy al detectar push
-  • Probar con video >1min después del deploy
+  1. Esperar 2-3 min para que Render haga auto-deploy
+  2. Ir a https://facelesstube.app
+  3. Seleccionar 3 minutos de duración
+  4. Generar un video
+  5. El script debe tener ~396 palabras
+  6. El video resultante debe durar ~3 minutos
 
 ====================================================================
-FIN — 2026-04-03 01:45 CST
+SI EL SISTEMA CRASHEÓ Y LEES ESTO:
+====================================================================
+
+  ✅ Los pushes YA se hicieron
+  ✅ No hay más código que cambiar
+  ✅ Solo falta verificar que Render hizo el deploy
+  
+  Si necesitas re-verificar:
+    curl https://facelesstube-backend.onrender.com/health
+  
+  Si el deploy falló:
+    1. Ve a https://dashboard.render.com
+    2. Busca el servicio "facelesstube-backend"
+    3. Verifica los logs del deploy más reciente
+    4. Si hay error, puede ser una dependencia nueva — revisar requirements.txt
+
+====================================================================
+COMMITS ACTUALES (post-push)
+====================================================================
+
+  Frontend: abf2001 → github.com/ssjvic/facelesstube
+  Backend:  52c84ef → github.com/ssjvic/facelesstube-backend
+
+====================================================================
+FIN — 2026-04-03 02:10 CST
 ====================================================================

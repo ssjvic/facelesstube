@@ -37,7 +37,7 @@ export default function Success() {
           <>
             <CheckCircle size={56} className="text-neon-green mx-auto mb-4" />
             <h1 className="text-2xl font-display font-bold text-white mb-2">
-              ¡Bienvenido al plan premium! 🎉
+              ¡Tu nuevo plan está activo! 🎉
             </h1>
             <p className="text-white/60 text-sm">
               Tu suscripción está activa. Redirigiendo...
