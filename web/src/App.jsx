@@ -17,7 +17,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-cosmic-950 font-display text-white selection:bg-primary/30 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-b from-blue-950 via-indigo-950 to-slate-950 font-display text-white selection:bg-primary/30 relative overflow-hidden">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none -z-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.04]"></div>
       <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[150px] -z-10"></div>
@@ -47,7 +47,7 @@ export default function App() {
 
           <h1 className="text-5xl md:text-7xl font-black uppercase italic tracking-tighter leading-tight drop-shadow-2xl">
             El Sistema de IA que permite a principiantes <br className="hidden md:block"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-emerald-400 to-electric-cyan neon-text">Renunciar a sus Empleos</span>
+            <span className="text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.4)]">Renunciar a sus Empleos</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-white/70 font-medium max-w-3xl mx-auto leading-relaxed">
