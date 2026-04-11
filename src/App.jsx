@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import Layout from "./components/layout/Layout";
 import ComingSoon from "./pages/ComingSoon";
 import Dashboard from "./pages/Dashboard";
@@ -22,6 +23,7 @@ import { supabase, isSupabaseConfigured } from "./config/supabase";
 
 function App() {
   const { user, loading, checkAuth } = useAuthStore();
+  const isNative = Capacitor.isNativePlatform();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showSplash, setShowSplash] = useState(() => {
     // Only show splash on first app load (not on refresh in browser during dev)
@@ -176,7 +178,7 @@ function App() {
 
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<ComingSoon />} />
+        <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <ComingSoon />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
@@ -198,7 +200,7 @@ function App() {
         </Route>
 
         {/* Catch all */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to={isNative ? "/app" : "/"} />} />
       </Routes>
 
       {/* Toast notifications */}
