@@ -182,15 +182,12 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
   }
 
   console.log(`📊 fetchAndSetProfile FINAL: videosThisMonth=${serverUser.videosThisMonth}, tier=${serverUser.tier}, email=${serverUser.email}`);
-  // Temporarily show server video count for debugging persistence
   set({
     user: serverUser,
     loading: false,
     isDemo: false,
-    error: `[DEBUG] Server videos=${profile?.videos_this_month ?? 'N/A'}, Final=${serverUser.videosThisMonth}`,
+    error: null,
   });
-  // Auto-clear the debug message after 5 seconds
-  setTimeout(() => set({ error: null }), 5000);
 }
 
 export const useAuthStore = create(

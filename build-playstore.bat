@@ -2,7 +2,7 @@
 echo ================================================
 echo   FacelessTube - Play Store Build (Signed AAB)
 echo   Uses Google Play Billing (NOT Stripe)
-echo   Version 1.7 - Build 8
+echo   Version 1.8 - Build 9
 echo ================================================
 echo.
 
@@ -71,7 +71,7 @@ echo    Gradle build OK!
 echo.
 
 echo ================================================
-echo   BUILD EXITOSO! Version 1.7 (Build 8)
+echo   BUILD EXITOSO! Version 1.8 (Build 9)
 echo.
 echo   AAB para subir a Play Console:
 echo   android\app\build\outputs\bundle\release\app-release.aab
