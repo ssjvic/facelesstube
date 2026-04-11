@@ -256,7 +256,8 @@ export const useAuthStore = create(
         } catch (error) {
           console.error("Auth check error:", error);
           // CRITICAL: Always set loading to false, never leave spinner stuck
-          set({ error: error.message, loading: false });
+          // Don't show raw error codes to users (e.g. Firebase "10:")
+          set({ loading: false });
         }
       },
 
@@ -287,108 +288,87 @@ export const useAuthStore = create(
           try {
             console.log("🔄 Native Google Sign-In via Firebase...");
             let FirebaseAuth;
+            let firebaseAvailable = true;
             try {
               const mod = await import("@capacitor-firebase/authentication");
               FirebaseAuth = mod.FirebaseAuthentication;
             } catch (importErr) {
-              console.error(
-                "❌ Cannot import @capacitor-firebase/authentication:",
-                importErr,
-              );
-              // FALLBACK: Use Supabase OAuth redirect in in-app browser
-              console.log("🔄 Falling back to Supabase OAuth redirect...");
-              const redirectUrl = "com.facelesstube.app://auth-callback";
-              const { data, error } = await supabase.auth.signInWithOAuth({
+              console.warn("⚠️ Cannot import @capacitor-firebase/authentication:", importErr);
+              firebaseAvailable = false;
+            }
+
+            let idToken = null;
+
+            if (firebaseAvailable) {
+              try {
+                console.log("📱 FirebaseAuthentication loaded, calling signInWithGoogle...");
+                const result = await FirebaseAuth.signInWithGoogle({
+                  scopes: ["email", "profile"],
+                  useCredentialManager: false,
+                });
+
+                console.log("✅ Firebase Google Sign-In result:", JSON.stringify(result, null, 2));
+                idToken = result.credential?.idToken;
+              } catch (firebaseErr) {
+                // Error code 10 = SHA-1 mismatch / developer error — fall through to OAuth
+                const errCode = String(firebaseErr?.code || firebaseErr?.message || "");
+                console.warn("⚠️ Firebase signInWithGoogle failed:", errCode, firebaseErr);
+                if (errCode === "12501" || errCode.includes("12501") || errCode.includes("cancel")) {
+                  // User cancelled — don't show error, just stop
+                  set({ loading: false });
+                  _loginInProgress = false;
+                  return false;
+                }
+                // For error 10 or any other Firebase error, fall through to Supabase OAuth
+                console.log("🔄 Firebase error, falling back to Supabase OAuth...");
+                idToken = null;
+              }
+            }
+
+            if (idToken) {
+              // We got a token from Firebase, exchange it with Supabase
+              console.log("🔑 Got ID token, signing in to Supabase...");
+
+              const { data, error } = await supabase.auth.signInWithIdToken({
                 provider: "google",
-                options: { redirectTo: redirectUrl },
+                token: idToken,
               });
-              if (error) throw error;
-              set({ loading: false });
-              _loginInProgress = false;
-              return true;
+
+              if (error) {
+                console.error("❌ Supabase signInWithIdToken error:", error.message);
+                // Don't give up — try OAuth fallback
+                console.log("🔄 signInWithIdToken failed, trying OAuth fallback...");
+              } else if (data?.user) {
+                console.log("✅ Supabase session created for:", data.user.email);
+                await fetchAndSetProfile(data.user, set, get);
+                _loginInProgress = false;
+                return true;
+              }
             }
 
-            console.log(
-              "📱 FirebaseAuthentication loaded, calling signInWithGoogle...",
-            );
-            const result = await FirebaseAuth.signInWithGoogle({
-              scopes: ["email", "profile"],
-              useCredentialManager: false,
-            });
-
-            console.log(
-              "✅ Firebase Google Sign-In result:",
-              JSON.stringify(result, null, 2),
-            );
-
-            // Get the ID token from Firebase
-            const idToken = result.credential?.idToken;
-            if (!idToken) {
-              console.error(
-                "❌ No idToken in result.credential:",
-                result.credential,
-              );
-              throw new Error("No se recibió ID token de Google");
-            }
-
-            console.log("🔑 Got ID token, signing in to Supabase...");
-
-            // Decode JWT for error diagnostics only
-            let jwtAud = "unknown";
-            try {
-              const parts = idToken.split(".");
-              const payload = JSON.parse(atob(parts[1]));
-              jwtAud = payload.aud;
-            } catch (decodeErr) {
-              console.log("Could not decode JWT:", decodeErr);
-            }
-
-            // Use the ID token to create a Supabase session
-            const { data, error } = await supabase.auth.signInWithIdToken({
+            // FALLBACK: Use Supabase OAuth redirect (opens Google login in browser)
+            console.log("🔄 Using Supabase OAuth redirect fallback...");
+            const redirectUrl = "com.facelesstube.app://auth-callback";
+            const { error: oauthError } = await supabase.auth.signInWithOAuth({
               provider: "google",
-              token: idToken,
+              options: { redirectTo: redirectUrl },
             });
-
-            if (error) {
-              console.error("❌ Supabase signInWithIdToken error:", JSON.stringify(error));
-              console.error("❌ Error message:", error.message);
-              console.error("❌ Error status:", error.status);
-              console.error("❌ Error code:", error.code);
-              // Show FULL error on screen - very visible
-              const errMsg = `ERROR: ${error.message}\n\nStatus: ${error.status || "N/A"}\nCode: ${error.code || "N/A"}\nAud: ${jwtAud}\nSupabase: ${import.meta.env.VITE_SUPABASE_URL}`;
-              set({ error: errMsg, loading: false });
-              // Don't throw - let user see the error
+            if (oauthError) {
+              console.error("❌ OAuth fallback also failed:", oauthError.message);
+              set({ error: "No se pudo conectar con Google. Verifica tu conexión a internet.", loading: false });
               _loginInProgress = false;
               return false;
             }
-
-            if (data?.user) {
-              console.log("✅ Supabase session created for:", data.user.email);
-              // Fetch real profile from DB to preserve counters
-              await fetchAndSetProfile(data.user, set, get);
-              _loginInProgress = false;
-              return true;
-            }
-
             set({ loading: false });
             _loginInProgress = false;
-            return false;
+            return true;
           } catch (error) {
             console.error("❌ Native Google Sign-In error:", error);
-            const msg =
-              error?.message ||
-              error?.code ||
-              "Error al iniciar sesión con Google";
-            // Don't show error for user cancellation
-            if (
-              error?.code === "12501" ||
-              msg.includes("12501") ||
-              msg.includes("cancel")
-            ) {
-              set({ loading: false });
-            } else {
-              set({ error: msg, loading: false });
-            }
+            // Show friendly message, never raw error codes
+            set({
+              error: "Error al iniciar sesión con Google. Intenta de nuevo.",
+              loading: false,
+            });
             _loginInProgress = false;
             return false;
           }
