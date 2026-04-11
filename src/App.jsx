@@ -69,56 +69,94 @@ function App() {
     return () => clearTimeout(safetyTimer);
   }, [loading]);
 
-  // Handle OAuth callback tokens from URL hash (works for both web and Capacitor)
+  // Handle OAuth callback tokens from deep links (Capacitor) and URL hash (web)
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
-    const handleOAuthCallback = async () => {
-      // Check if the current URL hash contains OAuth tokens
-      // Supabase appends tokens as: #access_token=...&refresh_token=...&type=...
-      const hash = window.location.hash;
-      if (
-        hash &&
-        hash.includes("access_token") &&
-        hash.includes("refresh_token")
-      ) {
-        console.log("🔗 OAuth tokens detected in URL hash");
-        const hashParams = new URLSearchParams(hash.substring(1));
-        const accessToken = hashParams.get("access_token");
-        const refreshToken = hashParams.get("refresh_token");
+    // Helper: extract tokens from a URL string (hash fragment)
+    const extractAndSetTokens = async (url) => {
+      try {
+        const hashIndex = url.indexOf("#");
+        if (hashIndex === -1) return false;
+
+        const hashStr = url.substring(hashIndex + 1);
+        const params = new URLSearchParams(hashStr);
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
 
         if (accessToken && refreshToken) {
-          console.log("✅ Setting session from OAuth tokens...");
+          console.log("🔑 OAuth tokens found, setting Supabase session...");
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
           if (error) {
-            console.error("❌ Error setting session:", error);
-          } else {
-            console.log("✅ Session set successfully from OAuth");
-            // Clean up the URL hash to avoid re-processing
-            window.location.hash = "";
-            await checkAuth();
+            console.error("❌ Error setting session from tokens:", error);
+            return false;
           }
+
+          console.log("✅ Session set successfully from OAuth tokens!");
+          window.location.hash = ""; // Clean up
+          await checkAuth();
+          return true;
         }
+      } catch (e) {
+        console.error("❌ Error processing OAuth tokens:", e);
       }
+      return false;
     };
 
-    // Check on mount (for deep link opens)
-    handleOAuthCallback();
+    // 1) Check the current URL hash on mount (web flow)
+    if (window.location.hash.includes("access_token")) {
+      extractAndSetTokens(window.location.href);
+    }
 
-    // Also check when app resumes from background (Capacitor)
+    // 2) Listen for deep link opens (Capacitor native app)
+    let appUrlListener = null;
+    if (Capacitor.isNativePlatform()) {
+      import("@capacitor/app").then(({ App }) => {
+        App.addListener("appUrlOpen", (event) => {
+          console.log("📲 Deep link received:", event.url);
+          if (event.url && event.url.includes("access_token")) {
+            extractAndSetTokens(event.url);
+          }
+        });
+        appUrlListener = App;
+        console.log("📲 Deep link listener registered");
+      }).catch((e) => {
+        console.warn("⚠️ Could not load @capacitor/app:", e);
+      });
+    }
+
+    // 3) Also check when app resumes from background
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        handleOAuthCallback();
+        // Re-check hash in case OAuth redirect happened while app was backgrounded
+        if (window.location.hash.includes("access_token")) {
+          extractAndSetTokens(window.location.href);
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // 4) Listen for Supabase auth state changes (catches all auth flows)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("🔔 Auth state change:", event);
+        if (event === "SIGNED_IN" && session?.user) {
+          console.log("✅ User signed in via auth state change:", session.user.email);
+          await checkAuth();
+        }
+      }
+    );
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      subscription?.unsubscribe();
+      if (appUrlListener) {
+        appUrlListener.removeAllListeners().catch(() => {});
+      }
     };
   }, [checkAuth]);
 
