@@ -17,6 +17,7 @@ import ThankYou from "./pages/ThankYou";
 import ToastContainer from "./components/ui/Toast";
 import SplashScreen from "./components/ui/SplashScreen";
 import AdModal from "./components/ui/AdModal";
+import RateAppPopup from "./components/ui/RateAppPopup";
 import { useAuthStore } from "./store/authStore";
 import { toast } from "./store/toastStore";
 import { supabase, isSupabaseConfigured } from "./config/supabase";
@@ -208,6 +209,9 @@ function App() {
 
       {/* Ad Modal - muestra anuncios para usuarios gratuitos */}
       <AdModal />
+
+      {/* Rate App Popup - solicitar calificación en Google Play */}
+      <RateAppPopup />
     </div>
   );
 }
