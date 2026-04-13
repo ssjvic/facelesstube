@@ -116,10 +116,22 @@ function App() {
     let appUrlListener = null;
     if (Capacitor.isNativePlatform()) {
       import("@capacitor/app").then(({ App }) => {
-        App.addListener("appUrlOpen", (event) => {
+        App.addListener("appUrlOpen", async (event) => {
           console.log("📲 Deep link received:", event.url);
           if (event.url && event.url.includes("access_token")) {
-            extractAndSetTokens(event.url);
+            // Close the external OAuth browser
+            try {
+              const { Browser } = await import("@capacitor/browser");
+              await Browser.close();
+              console.log("✅ External browser closed");
+            } catch (e) { /* browser might already be closed */ }
+
+            // Extract and set tokens
+            const success = await extractAndSetTokens(event.url);
+            if (!success) {
+              console.warn("⚠️ Failed to extract tokens from deep link, retrying checkAuth...");
+              await checkAuth();
+            }
           }
         });
         appUrlListener = App;

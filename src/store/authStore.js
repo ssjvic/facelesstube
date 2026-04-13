@@ -346,19 +346,37 @@ export const useAuthStore = create(
               }
             }
 
-            // FALLBACK: Use Supabase OAuth redirect (opens Google login in browser)
-            console.log("🔄 Using Supabase OAuth redirect fallback...");
+            // FALLBACK: Use Supabase OAuth in an EXTERNAL browser
+            // CRITICAL: We must NOT navigate the webview away (that causes the loop).
+            // Instead, get the OAuth URL and open it in an external browser.
+            // When done, the deep link com.facelesstube.app://auth-callback comes back
+            // and the appUrlOpen listener in App.jsx captures the tokens.
+            console.log("🔄 Using Supabase OAuth in external browser...");
             const redirectUrl = "com.facelesstube.app://auth-callback";
-            const { error: oauthError } = await supabase.auth.signInWithOAuth({
+            const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
               provider: "google",
-              options: { redirectTo: redirectUrl },
+              options: {
+                redirectTo: redirectUrl,
+                skipBrowserRedirect: true, // DON'T navigate the webview away!
+              },
             });
-            if (oauthError) {
-              console.error("❌ OAuth fallback also failed:", oauthError.message);
+            if (oauthError || !oauthData?.url) {
+              console.error("❌ OAuth URL generation failed:", oauthError?.message);
               set({ error: "No se pudo conectar con Google. Verifica tu conexión a internet.", loading: false });
               _loginInProgress = false;
               return false;
             }
+
+            // Open the OAuth URL in an external browser (not in the webview)
+            try {
+              const { Browser } = await import("@capacitor/browser");
+              await Browser.open({ url: oauthData.url, windowName: "_system" });
+              console.log("✅ External browser opened for OAuth");
+            } catch (browserErr) {
+              console.warn("⚠️ @capacitor/browser failed, trying window.open:", browserErr);
+              window.open(oauthData.url, "_system");
+            }
+
             set({ loading: false });
             _loginInProgress = false;
             return true;
