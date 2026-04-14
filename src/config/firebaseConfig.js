@@ -9,7 +9,7 @@ export const FIREBASE_CONFIG = {
 
 export const GOOGLE_OAUTH_CONFIG = {
     // Web Client ID - use this for OAuth flows
-    webClientId: '1034702874964-tvoigpg67rdhd5vmniknkluo1md3bh26.apps.googleusercontent.com',
+    webClientId: '1034702874964-1tl63q2ohl8p74ovc06jfe5028t70s9g.apps.googleusercontent.com',
 
     // Android package info
     androidPackage: 'com.facelesstube.app',
