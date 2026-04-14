@@ -322,6 +322,15 @@ export const useAuthStore = create(
             }
 
             if (idToken) {
+              // Log the token audience for debugging
+              try {
+                const parts = idToken.split(".");
+                const payload = JSON.parse(atob(parts[1]));
+                console.log("🔍 ID Token audience (aud):", payload.aud);
+                console.log("🔍 ID Token issuer (iss):", payload.iss);
+                console.log("🔍 ID Token email:", payload.email);
+              } catch (e) { /* ok */ }
+
               // Exchange Firebase token with Supabase
               const { data, error } = await supabase.auth.signInWithIdToken({
                 provider: "google",
@@ -335,6 +344,7 @@ export const useAuthStore = create(
                 return true;
               }
               console.warn("⚠️ signInWithIdToken failed:", error?.message);
+              // Don't return — fall through to OAuth fallback
             }
 
             // ============================================================
