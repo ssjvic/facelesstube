@@ -284,7 +284,7 @@ export const useAuthStore = create(
           window.Capacitor.isNativePlatform();
 
         if (isCapacitor) {
-          // NATIVE: Use Firebase Google Sign-In → Supabase signInWithIdToken
+          // NATIVE: Firebase Google Sign-In → Supabase signInWithIdToken
           try {
             console.log("🔄 Native Google Sign-In via Firebase...");
             let FirebaseAuth;
@@ -293,7 +293,7 @@ export const useAuthStore = create(
               const mod = await import("@capacitor-firebase/authentication");
               FirebaseAuth = mod.FirebaseAuthentication;
             } catch (importErr) {
-              console.warn("⚠️ Cannot import @capacitor-firebase/authentication:", importErr);
+              console.warn("⚠️ Cannot import Firebase Auth:", importErr);
               firebaseAvailable = false;
             }
 
@@ -306,61 +306,53 @@ export const useAuthStore = create(
                   scopes: ["email", "profile"],
                   useCredentialManager: false,
                 });
-                console.log("✅ Firebase result OK");
+                console.log("✅ Firebase signInWithGoogle OK");
                 idToken = result.credential?.idToken;
+                if (!idToken) {
+                  console.warn("⚠️ No idToken in result. user:", result.user?.email);
+                }
               } catch (firebaseErr) {
                 const errCode = String(firebaseErr?.code || firebaseErr?.message || "");
-                console.warn("⚠️ Firebase signInWithGoogle failed:", errCode);
+                console.warn("⚠️ Firebase failed:", errCode);
                 if (errCode === "12501" || errCode.includes("12501") || errCode.includes("cancel")) {
                   set({ loading: false });
                   _loginInProgress = false;
                   return false;
                 }
-                // Error 10 or other = SHA-1 mismatch, fall through to OAuth
                 idToken = null;
               }
             }
 
             if (idToken) {
-              // Log the token audience for debugging
+              // Debug: log token audience
               try {
-                const parts = idToken.split(".");
-                const payload = JSON.parse(atob(parts[1]));
-                console.log("🔍 ID Token audience (aud):", payload.aud);
-                console.log("🔍 ID Token issuer (iss):", payload.iss);
-                console.log("🔍 ID Token email:", payload.email);
+                const payload = JSON.parse(atob(idToken.split(".")[1]));
+                console.log("🔍 Token aud:", payload.aud, "email:", payload.email);
               } catch (e) { /* ok */ }
 
-              // Exchange Firebase token with Supabase
+              // Exchange with Supabase
               const { data, error } = await supabase.auth.signInWithIdToken({
                 provider: "google",
                 token: idToken,
               });
-
               if (!error && data?.user) {
-                console.log("✅ Supabase session created for:", data.user.email);
+                console.log("✅ Logged in:", data.user.email);
                 await fetchAndSetProfile(data.user, set, get);
                 _loginInProgress = false;
                 return true;
               }
               console.warn("⚠️ signInWithIdToken failed:", error?.message);
-              // Don't return — fall through to OAuth fallback
             }
 
-            // ============================================================
-            // FALLBACK: OAuth via in-app browser + session polling
-            // This does NOT depend on deep links. It opens a Chrome Custom
-            // Tab, the user logs in with Google, Supabase creates the session
-            // server-side, and we poll getSession() until we detect it.
-            // ============================================================
-            console.log("🔄 Fallback: OAuth in-app browser + polling...");
-
-            // Use Supabase project URL as redirect (avoids custom scheme issues)
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const redirectUrl = supabaseUrl
-              ? `${supabaseUrl}/auth/v1/callback`
-              : "com.facelesstube.app://auth-callback";
-
+            // ==============================================================
+            // FALLBACK: OAuth via Chrome Custom Tab + deep link redirect
+            // Opens Google login in Chrome Custom Tab. After auth, Supabase
+            // redirects to com.facelesstube.app://auth-callback#access_token=...
+            // Android's intent filter fires appUrlOpen, App.jsx extracts
+            // tokens and calls setSession().
+            // ==============================================================
+            console.log("🔄 Fallback: OAuth + deep link redirect...");
+            const redirectUrl = "com.facelesstube.app://auth-callback";
             const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
               provider: "google",
               options: {
@@ -370,61 +362,35 @@ export const useAuthStore = create(
             });
 
             if (oauthError || !oauthData?.url) {
-              console.error("❌ OAuth URL generation failed:", oauthError?.message);
-              set({ error: "No se pudo conectar con Google. Verifica tu conexión.", loading: false });
+              console.error("❌ OAuth failed:", oauthError?.message);
+              set({ error: "No se pudo conectar con Google.", loading: false });
               _loginInProgress = false;
               return false;
             }
 
-            // Open in Chrome Custom Tab (in-app, not external browser)
-            let browserOpened = false;
+            // Open in Chrome Custom Tab (stays in-app overlay)
             try {
               const { Browser } = await import("@capacitor/browser");
-              await Browser.open({ url: oauthData.url });
-              browserOpened = true;
-              console.log("✅ In-app browser opened for OAuth");
-            } catch (browserErr) {
-              console.warn("⚠️ @capacitor/browser failed:", browserErr);
-              window.open(oauthData.url, "_blank");
-              browserOpened = true;
-            }
-
-            // Poll for session while browser is open (check every 2s, timeout 120s)
-            set({ loading: true });
-            const maxAttempts = 60; // 60 × 2s = 120 seconds
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-              await new Promise(r => setTimeout(r, 2000));
-
-              try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session?.user) {
-                  console.log("✅ Session detected via polling! User:", session.user.email);
-                  // Close the browser
-                  try {
-                    const { Browser } = await import("@capacitor/browser");
-                    await Browser.close();
-                  } catch (e) { /* ok */ }
-                  // Set the user
-                  await fetchAndSetProfile(session.user, set, get);
+              Browser.addListener("browserFinished", () => {
+                console.log("📲 Browser closed");
+                setTimeout(async () => {
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (!session) set({ loading: false });
                   _loginInProgress = false;
-                  return true;
-                }
-              } catch (e) {
-                // Network error, keep polling
-              }
+                }, 1500);
+              });
+              await Browser.open({ url: oauthData.url });
+              console.log("✅ Chrome Custom Tab opened");
+            } catch (browserErr) {
+              console.warn("⚠️ Browser failed:", browserErr);
+              window.open(oauthData.url, "_system");
             }
 
-            // Timeout — user didn't complete login
-            console.warn("⏰ OAuth polling timed out after 120s");
-            try {
-              const { Browser } = await import("@capacitor/browser");
-              await Browser.close();
-            } catch (e) { /* ok */ }
-            set({ loading: false });
+            // Deep link handler in App.jsx will complete the flow
             _loginInProgress = false;
-            return false;
+            return true;
           } catch (error) {
-            console.error("❌ Native Google Sign-In error:", error);
+            console.error("❌ Login error:", error);
             set({
               error: "Error al iniciar sesión. Intenta de nuevo.",
               loading: false,
