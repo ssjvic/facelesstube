@@ -20,7 +20,8 @@ import {
 import { useAuthStore } from "../store/authStore";
 import { useTranslation } from "../store/i18nStore";
 import { toast } from "../store/toastStore";
-import { signInWithGoogle } from "../services/googleAuth";
+import { signInWithGoogle, signOutGoogle } from "../services/googleAuth";
+import { disconnectYoutube } from "../services/youtube";
 import { createPortalSession } from "../config/stripe";
 
 // Detect billing mode at build time
@@ -193,6 +194,19 @@ export default function Account() {
       toast.error(error.message || "Error al conectar YouTube");
     } finally {
       setIsConnectingYouTube(false);
+    }
+  };
+
+  // Handle YouTube disconnection
+  const handleDisconnectYouTube = async () => {
+    try {
+      await signOutGoogle();
+      disconnectYoutube();
+      await updateUser({ youtubeConnected: false });
+      toast.success("Canal de YouTube desconectado");
+    } catch (error) {
+      console.error("YouTube disconnect error:", error);
+      toast.error("Error al desconectar YouTube");
     }
   };
 
@@ -561,9 +575,36 @@ export default function Account() {
         </div>
 
         {user?.youtubeConnected ? (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-neon-green/10 border border-neon-green/30">
-            <CheckCircle2 size={20} className="text-neon-green" />
-            <span>{getText("channelConnected")}</span>
+          <div>
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-neon-green/10 border border-neon-green/30 mb-3">
+              <CheckCircle2 size={20} className="text-neon-green" />
+              <div className="flex-1">
+                <span className="font-medium">{getText("channelConnected")}</span>
+                {localStorage.getItem('youtube_refresh_token') && (
+                  <p className="text-xs text-neon-green/60 mt-0.5">Tokens de subida activos</p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleConnectYouTube}
+                disabled={isConnectingYouTube}
+                className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50"
+              >
+                {isConnectingYouTube ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Youtube size={14} />
+                )}
+                Reconectar
+              </button>
+              <button
+                onClick={handleDisconnectYouTube}
+                className="px-4 py-2 rounded-xl text-sm text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-colors"
+              >
+                Desconectar
+              </button>
+            </div>
           </div>
         ) : (
           <div>

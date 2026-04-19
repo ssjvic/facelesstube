@@ -1,17 +1,23 @@
 // YouTube Service - OAuth and Upload
-// This handles YouTube authentication and video uploads
+// Unified YouTube service that works with both native (Firebase) and web OAuth flows
+// For native: uses tokens from googleAuth.js (which exchanges serverAuthCode via backend)
+// For web: uses implicit OAuth flow (legacy)
 
-const YOUTUBE_CLIENT_ID = localStorage.getItem("youtube_client_id") || "";
-const YOUTUBE_SCOPES = [
-  "https://www.googleapis.com/auth/youtube.upload",
-  "https://www.googleapis.com/auth/youtube.readonly",
-].join(" ");
+import { getAccessToken as getGoogleAuthToken } from './googleAuth'
 
-// Check if YouTube is connected (supports both native and legacy auth)
+// Check if YouTube is connected
 export const isYoutubeConnected = () => {
-  // Check native Google Sign-In connection
+  // Check native Google Sign-In connection (preferred)
   const nativeConnected = localStorage.getItem("youtube_connected");
-  if (nativeConnected === "true") return true;
+  if (nativeConnected === "true") {
+    // Also verify we have an access token (or refresh token to get one)
+    const token = localStorage.getItem("youtube_access_token");
+    const refreshToken = localStorage.getItem("youtube_refresh_token");
+    if (token || refreshToken) return true;
+    // We're "connected" but have no usable tokens — still return true
+    // so the UI says "connected" but upload will trigger re-auth if needed
+    return true;
+  }
 
   // Legacy: Check old token method
   const token = localStorage.getItem("youtube_access_token");
@@ -26,7 +32,7 @@ export const getYoutubeChannel = () => {
   return channel ? JSON.parse(channel) : null;
 };
 
-// Initiate YouTube OAuth flow
+// Initiate YouTube OAuth flow (web only — native uses googleAuth.js)
 export const connectYoutube = async (clientId) => {
   if (clientId) {
     localStorage.setItem("youtube_client_id", clientId);
@@ -37,7 +43,11 @@ export const connectYoutube = async (clientId) => {
     throw new Error("Se necesita un Client ID de YouTube");
   }
 
-  // For mobile apps, we use the implicit grant flow
+  const YOUTUBE_SCOPES = [
+    "https://www.googleapis.com/auth/youtube.upload",
+    "https://www.googleapis.com/auth/youtube.readonly",
+  ].join(" ");
+
   const redirectUri = window.location.origin + "/youtube-callback";
   const authUrl =
     `https://accounts.google.com/o/oauth2/v2/auth?` +
@@ -48,7 +58,6 @@ export const connectYoutube = async (clientId) => {
     `&include_granted_scopes=true` +
     `&prompt=consent`;
 
-  // Open auth window
   window.location.href = authUrl;
 };
 
@@ -59,7 +68,6 @@ export const handleYoutubeCallback = async () => {
     return { success: false, error: "No access token found" };
   }
 
-  // Parse the token from URL hash
   const params = new URLSearchParams(hash.replace("#", ""));
   const accessToken = params.get("access_token");
   const expiresIn = params.get("expires_in");
@@ -68,12 +76,11 @@ export const handleYoutubeCallback = async () => {
     return { success: false, error: "Invalid access token" };
   }
 
-  // Store the token
   const expiryTime = Date.now() + parseInt(expiresIn) * 1000;
   localStorage.setItem("youtube_access_token", accessToken);
   localStorage.setItem("youtube_token_expiry", expiryTime.toString());
+  localStorage.setItem("youtube_token_expires_at", expiryTime.toString());
 
-  // Fetch channel info
   try {
     const channelInfo = await fetchChannelInfo(accessToken);
     localStorage.setItem("youtube_channel", JSON.stringify(channelInfo));
@@ -114,24 +121,40 @@ const fetchChannelInfo = async (accessToken) => {
   return null;
 };
 
+// Get a valid access token — tries googleAuth first, then legacy localStorage
+const getValidAccessToken = async () => {
+  // 1. Try googleAuth.js (handles auto-refresh via backend)
+  try {
+    const token = await getGoogleAuthToken();
+    if (token) return token;
+  } catch (e) {
+    console.warn("googleAuth.getAccessToken failed:", e);
+  }
+
+  // 2. Fallback: legacy localStorage token
+  const token = localStorage.getItem("youtube_access_token");
+  if (!token) return null;
+
+  // Check legacy expiry
+  const expiry = localStorage.getItem("youtube_token_expiry") ||
+                 localStorage.getItem("youtube_token_expires_at");
+  if (expiry && Date.now() >= parseInt(expiry)) {
+    console.warn("⚠️ YouTube access token expired");
+    return null;
+  }
+
+  return token;
+};
+
 // Upload video to YouTube
 export const uploadToYoutube = async (videoBlob, metadata) => {
   try {
-    const accessToken = localStorage.getItem("youtube_access_token");
+    const accessToken = await getValidAccessToken();
+
     if (!accessToken) {
       return {
         success: false,
-        error: "No estás conectado a YouTube. Ve a Cuenta y conecta tu canal.",
-      };
-    }
-
-    // Check if token is expired (only for legacy flow)
-    const expiry = localStorage.getItem("youtube_token_expiry");
-    if (expiry && Date.now() >= parseInt(expiry)) {
-      return {
-        success: false,
-        error:
-          "Tu sesión de YouTube expiró. Reconecta tu cuenta en Configuración.",
+        error: "No estás conectado a YouTube. Ve a Mi Cuenta y conecta tu canal.",
       };
     }
 
@@ -151,15 +174,14 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
         categoryId: "22", // People & Blogs
       },
       status: {
-        privacyStatus: privacyStatus, // 'private', 'public', 'unlisted'
+        privacyStatus: privacyStatus,
         selfDeclaredMadeForKids: false,
       },
     };
 
-    console.log("📤 Iniciando subida a YouTube...", { title, privacyStatus });
+    console.log("📤 Iniciando subida a YouTube...", { title, privacyStatus, blobSize: videoBlob.size });
 
     // Step 1: Initialize resumable upload
-    // Note: Content-Length is a forbidden header in fetch API — do NOT include it
     const initResponse = await fetch(
       "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
       {
@@ -168,7 +190,6 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
           "X-Upload-Content-Type": videoBlob.type || "video/mp4",
-          // X-Upload-Content-Length is optional and can cause issues on some clients
         },
         body: JSON.stringify(videoMetadata),
         signal: AbortSignal.timeout(30000),
@@ -177,20 +198,21 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
 
     if (!initResponse.ok) {
       const errorData = await initResponse.json().catch(() => ({}));
-      console.error("❌ Error iniciando subida:", errorData);
+      console.error("❌ Error iniciando subida:", initResponse.status, errorData);
 
-      // Handle specific errors
       if (initResponse.status === 401) {
+        // Clear expired/invalid token
+        localStorage.removeItem("youtube_access_token");
         return {
           success: false,
-          error: "Tu sesión de YouTube expiró. Reconecta tu cuenta.",
+          error: "Tu sesión de YouTube expiró. Ve a Mi Cuenta y reconecta tu canal.",
         };
       }
       if (initResponse.status === 403) {
         return {
           success: false,
           error:
-            "No tienes permisos para subir. Reconecta YouTube con los permisos correctos.",
+            "No tienes permisos para subir. Desconecta y reconecta tu canal de YouTube en Mi Cuenta.",
         };
       }
 
@@ -211,29 +233,43 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
 
     console.log("📤 Subiendo video...", { size: videoBlob.size });
 
-    // Step 2: Upload the video content
-    // Note: Content-Length is a FORBIDDEN header in fetch API — causes "Failed to fetch" on Android
-    // The browser sets it automatically from the body
-    const uploadResponse = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: {
-        "Content-Type": videoBlob.type || "video/mp4",
-        // DO NOT set Content-Length here — forbidden header, causes fetch to fail
-      },
-      body: videoBlob,
-      signal: AbortSignal.timeout(300000), // 5 min timeout for large video uploads
+    // Step 2: Upload the video content using XHR for better Android compatibility
+    const videoData = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          console.log(`📤 Upload progress: ${percent}%`);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (e) {
+            reject(new Error("Invalid response from YouTube"));
+          }
+        } else {
+          let errorMsg = "Error al subir el video a YouTube";
+          try {
+            const errorData = JSON.parse(xhr.responseText);
+            errorMsg = errorData.error?.message || errorMsg;
+          } catch (e) { /* ignore */ }
+          reject(new Error(errorMsg));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Error de red al subir el video"));
+      xhr.ontimeout = () => reject(new Error("La subida tardó demasiado. Intenta con un video más corto."));
+      xhr.timeout = 300000; // 5 min timeout
+
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", videoBlob.type || "video/mp4");
+      xhr.send(videoBlob);
     });
 
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json().catch(() => ({}));
-      console.error("❌ Error subiendo video:", errorData);
-      return {
-        success: false,
-        error: errorData.error?.message || "Error al subir el video a YouTube",
-      };
-    }
-
-    const videoData = await uploadResponse.json();
     console.log("✅ Video subido exitosamente:", videoData.id);
 
     return {
@@ -248,13 +284,13 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
     if (error.name === "TimeoutError" || error.name === "AbortError") {
       return {
         success: false,
-        error: "La subida tardo demasiado. Intenta con un video mas corto o verifica tu conexion.",
+        error: "La subida tardó demasiado. Intenta con un video más corto o verifica tu conexión.",
       };
     }
     if (error.message?.includes("Failed to fetch")) {
       return {
         success: false,
-        error: "No se pudo conectar con YouTube. Verifica tu conexion a internet e intenta de nuevo.",
+        error: "No se pudo conectar con YouTube. Verifica tu conexión a internet e intenta de nuevo.",
       };
     }
     return {
@@ -268,8 +304,11 @@ export const uploadToYoutube = async (videoBlob, metadata) => {
 export const disconnectYoutube = () => {
   localStorage.removeItem("youtube_access_token");
   localStorage.removeItem("youtube_token_expiry");
+  localStorage.removeItem("youtube_token_expires_at");
+  localStorage.removeItem("youtube_refresh_token");
   localStorage.removeItem("youtube_channel");
   localStorage.removeItem("youtube_client_id");
+  localStorage.removeItem("youtube_connected");
 };
 
 export default {

@@ -753,6 +753,33 @@ export default function Dashboard() {
         }
       }
 
+      // Strategy 4: Try IndexedDB (blob persisted across sessions)
+      if (!videoBlob && currentVideo?.id) {
+        try {
+          videoBlob = await new Promise((resolve) => {
+            const req = indexedDB.open("facelesstube_blobs", 1);
+            req.onsuccess = (e) => {
+              const idb = e.target.result;
+              if (!idb.objectStoreNames.contains("videos")) {
+                resolve(null);
+                return;
+              }
+              const tx = idb.transaction("videos", "readonly");
+              const getReq = tx.objectStore("videos").get(currentVideo.id);
+              getReq.onsuccess = () => {
+                const data = getReq.result;
+                resolve(data?.blob instanceof Blob ? data.blob : null);
+              };
+              getReq.onerror = () => resolve(null);
+            };
+            req.onerror = () => resolve(null);
+          });
+          if (videoBlob) console.log("✅ Recovered blob from IndexedDB:", videoBlob.size, "bytes");
+        } catch (idbErr) {
+          console.warn("IndexedDB recovery failed:", idbErr);
+        }
+      }
+
       if (!videoBlob) {
         throw new Error(
           "No se pudo acceder al video. Genera el video de nuevo antes de subirlo.",
