@@ -190,6 +190,11 @@ async function fetchAndSetProfile(sessionUser, set, getState) {
   });
 }
 
+// Reset any stale login guard on module load (survives hot-reloads and app restarts)
+// This ensures a previous crashed session doesn't block the next login attempt.
+_loginInProgress = false;
+_logoutInProgress = false;
+
 export const useAuthStore = create(
   persist(
     (set, get) => ({
@@ -298,28 +303,69 @@ export const useAuthStore = create(
             }
 
             let idToken = null;
+            let googleAccessToken = null;
 
             if (firebaseAvailable) {
+              // Try with Credential Manager first (Android 14+), then fall back
+              let signInResult = null;
+              let signInError = null;
+
               try {
-                console.log("📱 Calling signInWithGoogle...");
-                const result = await FirebaseAuth.signInWithGoogle({
+                console.log("📱 Trying signInWithGoogle (useCredentialManager=true)...");
+                signInResult = await FirebaseAuth.signInWithGoogle({
                   scopes: ["email", "profile"],
-                  useCredentialManager: false,
+                  useCredentialManager: true,
                 });
-                console.log("✅ Firebase signInWithGoogle OK");
-                idToken = result.credential?.idToken;
-                if (!idToken) {
-                  console.warn("⚠️ No idToken in result. user:", result.user?.email);
-                }
-              } catch (firebaseErr) {
-                const errCode = String(firebaseErr?.code || firebaseErr?.message || "");
-                console.warn("⚠️ Firebase failed:", errCode);
-                if (errCode === "12501" || errCode.includes("12501") || errCode.includes("cancel")) {
+                console.log("✅ Firebase signInWithGoogle OK (CredentialManager)");
+              } catch (err1) {
+                const code1 = String(err1?.code || err1?.message || "");
+                console.warn("⚠️ CredentialManager failed:", code1);
+
+                // User cancelled — don't try fallback
+                if (
+                  code1 === "12501" ||
+                  code1.includes("12501") ||
+                  code1.includes("cancel") ||
+                  code1.includes("Cancel")
+                ) {
                   set({ loading: false });
                   _loginInProgress = false;
                   return false;
                 }
-                idToken = null;
+
+                // Try legacy mode
+                try {
+                  console.log("📱 Trying signInWithGoogle (useCredentialManager=false)...");
+                  signInResult = await FirebaseAuth.signInWithGoogle({
+                    scopes: ["email", "profile"],
+                    useCredentialManager: false,
+                  });
+                  console.log("✅ Firebase signInWithGoogle OK (legacy)");
+                } catch (err2) {
+                  signInError = err2;
+                  const code2 = String(err2?.code || err2?.message || "");
+                  console.warn("⚠️ Legacy also failed:", code2);
+                  if (
+                    code2 === "12501" ||
+                    code2.includes("12501") ||
+                    code2.includes("cancel") ||
+                    code2.includes("Cancel")
+                  ) {
+                    set({ loading: false });
+                    _loginInProgress = false;
+                    return false;
+                  }
+                }
+              }
+
+              if (signInResult) {
+                idToken = signInResult.credential?.idToken || null;
+                googleAccessToken = signInResult.credential?.accessToken || null;
+                if (!idToken) {
+                  console.warn("⚠️ No idToken in result. user:", signInResult.user?.email);
+                }
+              } else if (signInError) {
+                console.warn("⚠️ Both Firebase attempts failed, using OAuth fallback");
               }
             }
 
@@ -330,11 +376,11 @@ export const useAuthStore = create(
                 console.log("🔍 Token aud:", payload.aud, "email:", payload.email);
               } catch (e) { /* ok */ }
 
-              // Exchange with Supabase
-              const { data, error } = await supabase.auth.signInWithIdToken({
-                provider: "google",
-                token: idToken,
-              });
+              // Exchange with Supabase — pass access_token for better compatibility
+              const signInParams = { provider: "google", token: idToken };
+              if (googleAccessToken) signInParams.access_token = googleAccessToken;
+
+              const { data, error } = await supabase.auth.signInWithIdToken(signInParams);
               if (!error && data?.user) {
                 console.log("✅ Logged in:", data.user.email);
                 await fetchAndSetProfile(data.user, set, get);
@@ -342,17 +388,30 @@ export const useAuthStore = create(
                 return true;
               }
               console.warn("⚠️ signInWithIdToken failed:", error?.message);
+              if (error?.message?.includes("nonce") || error?.message?.includes("audience")) {
+                console.error("❌ Token rejected by Supabase (nonce/audience mismatch):", error.message);
+              }
             }
 
             // ==============================================================
-            // FALLBACK: OAuth via Chrome Custom Tab + deep link redirect
-            // Opens Google login in Chrome Custom Tab. After auth, Supabase
-            // redirects to com.facelesstube.app://auth-callback#access_token=...
-            // Android's intent filter fires appUrlOpen, App.jsx extracts
-            // tokens and calls setSession().
+            // FALLBACK: OAuth via Chrome Custom Tab + PKCE deep link
+            //
+            // KEY INSIGHT: The previous black screen was caused by flowType:'implicit'
+            // which redirects to com.facelesstube.app://auth-callback#access_token=...
+            // Chrome Custom Tab cannot navigate to a hash-fragment custom scheme URL.
+            //
+            // With flowType:'pkce' (current), Supabase does an HTTP 302 redirect to
+            // com.facelesstube.app://auth-callback?code=XXXX (query param, no hash).
+            // Chrome Custom Tab DOES correctly fire an Android intent for this.
+            //
+            // CRITICAL ADVANTAGE over _system browser:
+            // Custom Tab keeps the app process alive in background (it runs "on top"),
+            // so the PKCE code_verifier stays in localStorage when appUrlOpen fires.
+            // With _system browser, Android may kill the app, destroying the verifier.
             // ==============================================================
-            console.log("🔄 Fallback: OAuth + deep link redirect...");
+            console.log("🔄 Fallback: OAuth via Chrome Custom Tab (PKCE)...");
             const redirectUrl = "com.facelesstube.app://auth-callback";
+
             const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
               provider: "google",
               options: {
@@ -362,37 +421,55 @@ export const useAuthStore = create(
             });
 
             if (oauthError || !oauthData?.url) {
-              console.error("❌ OAuth failed:", oauthError?.message);
-              set({ error: "No se pudo conectar con Google.", loading: false });
+              console.error("❌ OAuth URL generation failed:", oauthError?.message);
+              set({ error: "No se pudo conectar con Google. Intenta de nuevo.", loading: false });
               _loginInProgress = false;
               return false;
             }
 
-            // Open in Chrome Custom Tab (stays in-app overlay)
             try {
               const { Browser } = await import("@capacitor/browser");
-              Browser.addListener("browserFinished", () => {
-                console.log("📲 Browser closed");
-                setTimeout(async () => {
-                  const { data: { session } } = await supabase.auth.getSession();
-                  if (!session) set({ loading: false });
+
+              // If the browser closes without completing OAuth (user pressed back),
+              // wait briefly then check if we somehow already have a session.
+              Browser.addListener("browserFinished", async () => {
+                console.log("📲 Custom Tab closed");
+                // Give 1.5 s for any pending appUrlOpen to fire first
+                await new Promise(r => setTimeout(r, 1500));
+                if (_loginInProgress) {
+                  console.log("📲 No deep link arrived after browser close — clearing loading state");
+                  set({ loading: false });
                   _loginInProgress = false;
-                }, 1500);
+                }
               });
+
               await Browser.open({ url: oauthData.url });
-              console.log("✅ Chrome Custom Tab opened");
+              console.log("✅ Chrome Custom Tab opened — waiting for PKCE deep link callback...");
             } catch (browserErr) {
-              console.warn("⚠️ Browser failed:", browserErr);
+              // Fallback to system browser if Browser plugin unavailable
+              console.warn("⚠️ Browser plugin failed, using _system:", browserErr);
               window.open(oauthData.url, "_system");
             }
 
-            // Deep link handler in App.jsx will complete the flow
-            _loginInProgress = false;
+            // Safety timeout: 5 min in case neither appUrlOpen nor browserFinished fire
+            setTimeout(() => {
+              if (_loginInProgress) {
+                console.warn("⚠️ OAuth 5-min timeout — releasing guard");
+                _loginInProgress = false;
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                  if (session?.user) fetchAndSetProfile(session.user, set, get);
+                  else set({ loading: false });
+                });
+              }
+            }, 5 * 60 * 1000);
+
+            // _loginInProgress stays TRUE — released by appUrlOpen handler in App.jsx
             return true;
+
           } catch (error) {
             console.error("❌ Login error:", error);
             set({
-              error: "Error al iniciar sesión. Intenta de nuevo.",
+              error: "Error al iniciar sesión con Google. Intenta de nuevo.",
               loading: false,
             });
             _loginInProgress = false;
@@ -406,10 +483,11 @@ export const useAuthStore = create(
             const { data, error } = await supabase.auth.signInWithOAuth({
               provider: "google",
               options: {
-                // BrowserRouter uses clean /routes, redirect to root.
-                // The onAuthStateChange listener + checkAuth will handle
-                // setting user state and Auth.jsx's useEffect redirects to /app.
-                redirectTo: window.location.origin,
+                // Redirect to /auth (not root /) so that:
+                // 1. processOAuthUrl in App.jsx handles the ?code= and sets the session
+                // 2. Auth.jsx useEffect detects user is now logged in and navigates to /app
+                // 3. Root route (/) also redirects to /app if user is set (belt+suspenders)
+                redirectTo: `${window.location.origin}/auth`,
               },
             });
 
@@ -813,44 +891,14 @@ export const useAuthStore = create(
   ),
 );
 
-// Listen for auth changes (for real Supabase auth)
-if (isSupabaseConfigured()) {
-  supabase.auth.onAuthStateChange((event, session) => {
-    console.log("🔔 Auth state changed:", event);
+// NOTE: The onAuthStateChange listener is registered in App.jsx to avoid
+// duplicate handlers. This file only exports helpers used by App.jsx.
 
-    // CRITICAL: Never interfere when login or logout functions are actively setting state
-    if (_loginInProgress || _logoutInProgress) {
-      console.log("⏳ onAuthStateChange skipped:", _loginInProgress ? "login" : "logout", "in progress");
-      return;
-    }
-
-    if (event === "SIGNED_IN" && session?.user) {
-      // Fetch real profile to preserve counters (videosThisMonth, credits, etc.)
-      const { user: currentUser } = useAuthStore.getState();
-      if (!currentUser) {
-        console.log(
-          "🔔 Setting user from auth state change (SIGNED_IN) — fetching profile...",
-        );
-        fetchAndSetProfile(
-          session.user,
-          (state) => useAuthStore.setState(state),
-          useAuthStore.getState,
-        );
-      }
-    } else if (event === "TOKEN_REFRESHED" && session?.user) {
-      // On token refresh, quietly update — no need to call checkAuth
-      const { user: currentUser } = useAuthStore.getState();
-      if (currentUser) {
-        console.log("🔔 Token refreshed, user still valid");
-      } else {
-        useAuthStore.setState({
-          user: buildUserFromSession(session.user),
-          loading: false,
-          isDemo: false,
-        });
-      }
-    } else if (event === "SIGNED_OUT") {
-      useAuthStore.setState({ user: null, loading: false });
-    }
-  });
+// Exported helper: called by App.jsx's deep link handler after OAuth callback
+// to release the _loginInProgress guard so checkAuth() can run.
+export function releaseLoginGuard() {
+  if (_loginInProgress) {
+    console.log("🔓 releaseLoginGuard: releasing _loginInProgress");
+    _loginInProgress = false;
+  }
 }

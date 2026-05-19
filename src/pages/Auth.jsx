@@ -3,6 +3,10 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useTranslation } from "../store/i18nStore";
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+
+// Version displayed in login screen — update manually with each release
+const APP_BUILD = "v3.3 (build 24)";
 
 export default function Auth() {
   const { user, loginWithGoogle, error, loading } = useAuthStore();
@@ -18,12 +22,12 @@ export default function Auth() {
   }, [user, loading, navigate]);
 
   const handleGoogleLogin = async () => {
-    if (isLoggingIn) return;
+    if (isLoggingIn || loading) return;
     setIsLoggingIn(true);
     try {
       const success = await loginWithGoogle();
       if (success) {
-        // Navigation happens via useEffect
+        // Navigation happens via useEffect when user state is set
       }
     } catch (e) {
       console.error("Google login error:", e);
@@ -34,14 +38,17 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-12">
       <div className="glass-card p-8 md:p-10 max-w-md w-full">
-        {/* Back button */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 text-sm"
-        >
-          <ArrowLeft size={16} />
-          <span>{t("auth.back")}</span>
-        </Link>
+        {/* Back button — hidden on Android (hardware back button handles this;
+             on native / redirects to /app which loops back to /auth) */}
+        {!Capacitor.isNativePlatform() && (
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-6 text-sm"
+          >
+            <ArrowLeft size={16} />
+            <span>{t("auth.back")}</span>
+          </Link>
+        )}
 
         {/* Logo */}
         <div className="text-center mb-8">
@@ -64,10 +71,10 @@ export default function Auth() {
         {/* Google Sign-In Button */}
         <button
           onClick={handleGoogleLogin}
-          disabled={isLoggingIn}
+          disabled={isLoggingIn || loading}
           className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl bg-white text-gray-800 font-semibold hover:bg-gray-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
-          {isLoggingIn ? (
+          {isLoggingIn || loading ? (
             <Loader2 size={20} className="animate-spin text-gray-600" />
           ) : (
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -89,7 +96,7 @@ export default function Auth() {
               />
             </svg>
           )}
-          {isLoggingIn ? t("auth.connecting") : t("auth.google")}
+          {isLoggingIn || loading ? t("auth.connecting") : t("auth.google")}
         </button>
 
         {/* Divider */}
@@ -106,33 +113,24 @@ export default function Auth() {
           </p>
           <div className="flex items-center justify-center gap-4 text-white/30 text-xs">
             <div className="flex items-center gap-1">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
               {t("auth.sslEncrypted")}
             </div>
             <div className="flex items-center gap-1">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
               {t("auth.dataProtected")}
             </div>
           </div>
+
+          {/* Version badge — visible for support/debugging */}
+          <p className="text-white/40 text-xs pt-2 select-all">
+            {APP_BUILD}
+          </p>
         </div>
       </div>
     </div>

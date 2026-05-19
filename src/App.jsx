@@ -18,7 +18,7 @@ import ToastContainer from "./components/ui/Toast";
 import SplashScreen from "./components/ui/SplashScreen";
 import AdModal from "./components/ui/AdModal";
 import RateAppPopup from "./components/ui/RateAppPopup";
-import { useAuthStore } from "./store/authStore";
+import { useAuthStore, releaseLoginGuard } from "./store/authStore";
 import { toast } from "./store/toastStore";
 import { supabase, isSupabaseConfigured } from "./config/supabase";
 
@@ -69,84 +69,95 @@ function App() {
     return () => clearTimeout(safetyTimer);
   }, [loading]);
 
-  // Handle OAuth callback tokens from deep links (Capacitor) and URL hash (web)
+  // Handle OAuth callback from deep links (Capacitor) and URL (web)
+  // Supports BOTH Supabase v2 PKCE flow (?code=) and legacy implicit (#access_token=)
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
-    // Helper: extract tokens from a URL string (hash fragment)
-    const extractAndSetTokens = async (url) => {
+    // Unified URL processor — handles ?code= (PKCE) and #access_token= (implicit)
+    const processOAuthUrl = async (url) => {
+      if (!url) return false;
+      console.log("🔗 Processing OAuth URL:", url.substring(0, 100));
       try {
-        const hashIndex = url.indexOf("#");
-        if (hashIndex === -1) return false;
-
-        const hashStr = url.substring(hashIndex + 1);
-        const params = new URLSearchParams(hashStr);
-        const accessToken = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          console.log("🔑 OAuth tokens found, setting Supabase session...");
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            console.error("❌ Error setting session from tokens:", error);
-            return false;
+        // ── PKCE flow: ?code= in query string (Supabase v2 default) ──────────
+        const urlObj = new URL(url);
+        const code = urlObj.searchParams.get("code");
+        if (code) {
+          console.log("🔑 PKCE code found — exchanging for session...");
+          const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+          if (error) { console.error("❌ exchangeCodeForSession failed:", error.message); return false; }
+          if (data?.session) {
+            console.log("✅ PKCE session established:", data.session.user?.email);
+            releaseLoginGuard();
+            await checkAuth();
+            return true;
           }
-
-          console.log("✅ Session set successfully from OAuth tokens!");
-          window.location.hash = ""; // Clean up
-          await checkAuth();
-          return true;
+        }
+        // ── Implicit flow: #access_token= in hash (older Supabase or explicit config) ──
+        const hashIndex = url.indexOf("#");
+        if (hashIndex !== -1) {
+          const params = new URLSearchParams(url.substring(hashIndex + 1));
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          if (accessToken && refreshToken) {
+            console.log("🔑 Implicit tokens found — setting session...");
+            const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+            if (error) { console.error("❌ setSession failed:", error.message); return false; }
+            console.log("✅ Implicit session set");
+            window.location.hash = "";
+            releaseLoginGuard();
+            await checkAuth();
+            return true;
+          }
         }
       } catch (e) {
-        console.error("❌ Error processing OAuth tokens:", e);
+        console.error("❌ processOAuthUrl error:", e.message);
       }
       return false;
     };
 
-    // 1) Check the current URL hash on mount (web flow)
-    if (window.location.hash.includes("access_token")) {
-      extractAndSetTokens(window.location.href);
+    // 1) Web flow — check current URL on mount
+    const currentUrl = window.location.href;
+    if (currentUrl.includes("code=") || currentUrl.includes("access_token")) {
+      processOAuthUrl(currentUrl);
     }
 
-    // 2) Listen for deep link opens (Capacitor native app)
-    let appUrlListener = null;
+    // 2) Native deep link handlers (Capacitor)
+    let appInstance = null;
     if (Capacitor.isNativePlatform()) {
-      import("@capacitor/app").then(({ App }) => {
-        App.addListener("appUrlOpen", async (event) => {
-          console.log("📲 Deep link received:", event.url);
-          if (event.url && event.url.includes("access_token")) {
-            // Close the external OAuth browser
-            try {
-              const { Browser } = await import("@capacitor/browser");
-              await Browser.close();
-              console.log("✅ External browser closed");
-            } catch (e) { /* browser might already be closed */ }
+      import("@capacitor/app").then(async ({ App }) => {
+        // getLaunchUrl: fires when deep link RELAUNCHES the app from a killed state
+        try {
+          const launchUrl = await App.getLaunchUrl();
+          if (launchUrl?.url && (launchUrl.url.includes("code=") || launchUrl.url.includes("access_token"))) {
+            console.log("🚀 Launch URL with OAuth data detected");
+            await processOAuthUrl(launchUrl.url);
+          }
+        } catch (e) { console.warn("⚠️ getLaunchUrl failed:", e.message); }
 
-            // Extract and set tokens
-            const success = await extractAndSetTokens(event.url);
-            if (!success) {
-              console.warn("⚠️ Failed to extract tokens from deep link, retrying checkAuth...");
-              await checkAuth();
-            }
+        // appUrlOpen: fires when deep link arrives while app is already running
+        App.addListener("appUrlOpen", async (event) => {
+          console.log("📲 Deep link received:", event.url?.substring(0, 100));
+          if (!event.url) return;
+          const hasOAuth = event.url.includes("code=") || event.url.includes("access_token");
+          if (hasOAuth) {
+            try { const { Browser } = await import("@capacitor/browser"); await Browser.close(); } catch (e) {}
+            releaseLoginGuard();
+            const success = await processOAuthUrl(event.url);
+            if (!success) { await checkAuth(); }
           }
         });
-        appUrlListener = App;
-        console.log("📲 Deep link listener registered");
-      }).catch((e) => {
-        console.warn("⚠️ Could not load @capacitor/app:", e);
-      });
+        appInstance = App;
+        console.log("📲 Deep link listener registered (PKCE-aware)");
+      }).catch((e) => console.warn("⚠️ Could not load @capacitor/app:", e));
     }
 
-    // 3) Also check when app resumes from background
+    // 3) Visibility change — re-check when app returns to foreground
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        // Re-check hash in case OAuth redirect happened while app was backgrounded
-        if (window.location.hash.includes("access_token")) {
-          extractAndSetTokens(window.location.href);
+        const url = window.location.href;
+        if (url.includes("code=") || url.includes("access_token")) {
+          processOAuthUrl(url);
         }
       }
     };
@@ -156,9 +167,33 @@ function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("🔔 Auth state change:", event);
+
         if (event === "SIGNED_IN" && session?.user) {
-          console.log("✅ User signed in via auth state change:", session.user.email);
-          await checkAuth();
+          console.log("✅ SIGNED_IN for:", session.user.email);
+          const currentStore = useAuthStore.getState();
+
+          if (!currentStore.user || currentStore.user.id !== session.user.id) {
+            // Guard may still be active from the Firebase login flow.
+            // Release it so checkAuth() can actually run.
+            releaseLoginGuard();
+            console.log("🔔 SIGNED_IN — calling checkAuth (guard released)");
+            await checkAuth();
+          } else {
+            console.log("🔔 User already set in store, skipping redundant checkAuth");
+          }
+        } else if (event === "TOKEN_REFRESHED" && session?.user) {
+          const { user: currentUser } = useAuthStore.getState();
+          if (!currentUser) {
+            console.log("🔔 Token refreshed but no user — running checkAuth");
+            releaseLoginGuard();
+            await checkAuth();
+          }
+        } else if (event === "SIGNED_OUT") {
+          const currentState = useAuthStore.getState();
+          if (currentState.user !== null) {
+            console.log("🔔 SIGNED_OUT event — clearing user state");
+            useAuthStore.setState({ user: null, loading: false });
+          }
         }
       }
     );
@@ -166,8 +201,8 @@ function App() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       subscription?.unsubscribe();
-      if (appUrlListener) {
-        appUrlListener.removeAllListeners().catch(() => {});
+      if (appInstance) {
+        appInstance.removeAllListeners().catch(() => {});
       }
     };
   }, [checkAuth]);
@@ -229,7 +264,7 @@ function App() {
 
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={isNative ? <Navigate to="/app" replace /> : <ComingSoon />} />
+        <Route path="/" element={isNative ? <Navigate to="/app" replace /> : (user ? <Navigate to="/app" replace /> : <ComingSoon />)} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
